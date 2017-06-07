@@ -12,7 +12,7 @@ XLogMiner是从PostgreSQL的WAL(write ahead logs)日志中解析出执行的SQL�
 ```
 
 ## PG版本支持
-目前主要是在pg9.5.x上开发测试的，如果在9.6中发现问题欢迎反馈。
+目前主要是在PostgreSQL 9.5.x上开发测试的，在9.6版本中仅做过简单验证，如果使用过程中发现问题欢迎向我们反馈。
 
 # 编译安装
 1. 将xlogminer目录放置到编译通过的PG工程的"../contrib/"目录下
