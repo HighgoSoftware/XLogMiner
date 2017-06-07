@@ -720,10 +720,12 @@ ValidXLogPageHeader_logminer(XLogReaderState *state, XLogRecPtr recptr,
 
 		XLogFileName(fname, state->readPageTLI, segno);
 		rrctl.logprivate.endptr_reached = true;
+		/*
 		ereport(NOTICE,(errmsg("unexpected pageaddr %X/%X in log segment %s, offset %u",
 							  (uint32) (hdr->xlp_pageaddr >> 32), (uint32) hdr->xlp_pageaddr,
 							  fname,
 							  offset)));
+		*/
 		return false;
 	}
 

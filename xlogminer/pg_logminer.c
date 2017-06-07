@@ -814,7 +814,7 @@ minerHeap2MutiInsert(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 in
 		rrctl.nomalrel = (!rrctl.sysrel) && (!tableIftoastrel(reloid));
 		rrctl.imprel = tableifImpSysclass(relname.data,reloid);
 		rrctl.tbsoid = rnode.spcNode;
-
+		rrctl.recordxid = XLogRecGetXid(record);
 		if(rrctl.tupdesc)
 		{
 			freetupdesc(rrctl.tupdesc);

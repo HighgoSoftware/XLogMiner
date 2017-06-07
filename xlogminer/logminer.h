@@ -205,6 +205,7 @@ bool ifQueNeedDelete(Form_pg_attribute attrs);
 void checkVarlena(Datum attr,struct varlena** att_return);
 void deleteQueFromStr(char* strPara);
 void keepDigitFromStr(char* strPara);
+void fixPathEnd(char *path);
 
 
 #endif

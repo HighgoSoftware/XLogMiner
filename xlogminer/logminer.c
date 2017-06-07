@@ -300,6 +300,15 @@ passOver(char **sql, bool isspace,bool ignoresbrack)
 	return true;
 }
 
+void
+fixPathEnd(char *path)
+{
+	int pathLength = 0;
+	pathLength = strlen(path);
+	if('/' == path[pathLength - 1])
+		path[pathLength - 1] = 0;
+}
+
 bool
 isEmptStr(char *str)
 {
@@ -781,7 +790,7 @@ curXactCheck(TimestampTz xact_time ,TransactionId xid, bool xactcommit,xl_xact_p
 			fxc.record_user = xcf[loop].record_user.sqlStr;
 			fxc.record_tablespace = xcf[loop].record_tablespace.sqlStr;
 			fxc.record_schema = xcf[loop].record_schema.sqlStr;
-			
+			fxc.xid = xid;
 
 			
 			InsertXlogContentsTuple(&fxc);

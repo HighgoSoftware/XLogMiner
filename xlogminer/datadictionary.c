@@ -1105,7 +1105,6 @@ removexlogfile(char *path)
 	XlogFile	*xfptr = NULL;
 	XlogFileList xfl = NULL;
 	char		*filedir = NULL, *filename = NULL;
-	char		*filedir_path = NULL, *filename_path = NULL;
 	TimeLineID	timeline = 0;
 	XLogSegNo	segno = 0;
 
@@ -1123,12 +1122,10 @@ removexlogfile(char *path)
 	xfptr = xfl;
 	while(xfptr)
 	{
-		int length_pathname_path = 0;
 		split_path_fname(xfptr->filepath,&filedir,&filename);
-		split_path_fname(path,&filedir_path,&filename_path);
-		length_pathname_path = strlen(filename_path);
+		fixPathEnd(path);
 		
-		if(0 == strcmp(filedir_path, filedir) && 1 >= length_pathname_path)
+		if(0 == strcmp(path, filedir))
 		{
 			xftemp = xfptr;
 			xfptr = xfptr->next;
