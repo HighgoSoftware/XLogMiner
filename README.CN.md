@@ -5,11 +5,19 @@ XLogMiner
 XLogMiner是从PostgreSQL的WAL(write ahead logs)日志中解析出执行的SQL语句的工具，并能生成出对应的undo SQL语句。
 
 # 配置要求
-需要将数据库日志级别配置为logical模式, 并将表设置为full模式。例如，下面的语句将表t1设置为full模式:
+## 需要将数据库日志级别配置为logical模式, 并将表设置为full模式。例如，下面的语句将表t1设置为full模式:
 
 ```sql
 	alter table t1 replica identity FULL;
 ```
+
+## PG版本支持
+目前主要是在pg9.5.x上开发测试的，如果在9.6中发现问题欢迎反馈。
+
+# 编译安装
+1. 将xlogminer目录放置到编译通过的PG工程的"../contrib/"目录下
+2. 进入xlogminer目录
+3. 执行make;make install;
 
 # 使用方法
 ## 场景一：从WAL日志产生的数据库中直接执行解析
@@ -143,7 +151,5 @@ XLogMiner是从PostgreSQL的WAL(write ahead logs)日志中解析出执行的SQL�
 7. 若没有将数据库日志级别设置为logical，解析结果会有无法预料的语句丢失
 8. 执行了表字段drop的DDL语句后,发生DDL语句之前的这个字段相关的值都会被解析为encode（'AD976BC56F'，hex）的形式，另外自定义类型也会解析为这种形式
 
-# 编译安装
-1. 将xlogminer目录放置到编译通过的PG工程的"../contrib/"目录下
-2. 进入xlogminer目录
-3. 执行make;make install;
+# 联系我们
+发现bug或者有好的建议可以通过邮箱（opensource@highgo.com）联系我们。
