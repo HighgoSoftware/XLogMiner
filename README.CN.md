@@ -47,17 +47,18 @@ XLogMiner是从PostgreSQL的WAL(write ahead logs)日志中解析出执行的SQL�
 ### 5. 执行解析
 ```sql
 	select xlogminer_start(’START_TIMSTAMP’,’STOP_TIMESTAMP’,’START_XID’,’STOP_XID’)
+	---如果分析全部日志：
+	select xlogminer_start('null','null',0,0);
 ```
+
 * **START_TIMESTAMP**：指定输出结果中最早的记录条目，即从该时间开始输出分析数据；若该参数值为空，则以分析日志列表中最早数据开始输出；若该参数值指定时间没有包含在所分析xlog列表中，即通过分析发现全部早于该参数指定时间，则返回空值。	
 * **STOP_TIMESTAMP**：指定数据结果中最晚的记录条目，即输出结果如果大于该时间，则停止分析，不需要继续输出；如果该参数值为空，则从**START_TIMESTAMP**开始的所有日志都进行分析和输出。	
 * **START_XID**：作用与**START_TIMESTAMP**相同，指定开始的**XID**值；	
 * **STOP_XID**：作用与**STOP_TIMESTAMP**相同，指定结束的**XID**值	
 
 :warning: **两组参数只能有一组为有效输入，否则报错。**
-如果分析全部日志：
-```sql
-	select xlogminer_start('null','null',0,0);
-```
+
+
 
 ### 6. 解析结果查看
 ```sql
