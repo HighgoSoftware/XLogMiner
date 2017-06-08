@@ -6,11 +6,22 @@ an Open-Source SQL miner on PostgreSQL WAL log
 XLogMiner is used for parsing the SQL statement out from the PostgreSQL WAL (write ahead logs) logs, and it can also generate the corresponding "undo SQL".
 
 # Configurations requirements
-
 You need configure the WAL level to "logical", and setup the table to "full" mode. For example, the blow statement is setting the table "t1" to "full" mode.
 
 ```sql
 alter table t1 replica identity FULL;
+```
+
+# Supported PostgreSQL versions
+The project was developed based on PostgreSQL 9.4.x, with only basic verification on PostgreSQL 9.6.
+Please let us know if you find any issues during your use.
+
+# Compile and install
+1. Copy the xlogminer directory into the "../contrib/" directory of the PostgreSQL source code location
+2. Enter "contrib/xlogminer" directory
+3. Execute commands
+```shell
+make && make install
 ```
 
 # User Guide
