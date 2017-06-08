@@ -17,7 +17,10 @@ alter table t1 replica identity FULL;
 # 编译安装
 1. 将xlogminer目录放置到编译通过的PG工程的"../contrib/"目录下
 2. 进入xlogminer目录
-3. 执行make;make install;
+3. 执行命令
+```shell
+make && make install
+```
 
 # 使用方法
 ## 场景一：从WAL日志产生的数据库中直接执行解析
