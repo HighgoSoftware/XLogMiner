@@ -54,7 +54,11 @@ XLogMiner是从PostgreSQL的WAL(write ahead logs)日志中解析出执行的SQL�
 * **STOP_XID**：作用与**STOP_TIMESTAMP**相同，指定结束的**XID**值	
 
 :warning: **两组参数只能有一组为有效输入，否则报错。**
-	
+如果分析全部日志：
+```sql
+	select xlogminer_start('null','null',0,0);
+```
+
 ### 6. 解析结果查看
 ```sql
 	select * from xlogminer_contents;
