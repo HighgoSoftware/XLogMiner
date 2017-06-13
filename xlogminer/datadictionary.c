@@ -48,7 +48,7 @@ static int scanDir_getfilename(char *scdir,NameData *datafilename, bool sigfile)
 static void dropAllFileInADir(char *dir);
 static int pathcheck(char *path);
 static bool create_dir(char *path);
-static PgDataDic* initDataDicMemory(int dicloadtype);
+static PgDataDic* initDataDicMemory();
 static bool checkXlogFileValid(char *path,int pathkind);
 static int checkXlogFileRepeat(char *path,XlogFile **xfrepeat);
 static void paddingscl(SysClassLevel *scl);
@@ -56,8 +56,8 @@ static void proCheckBit(FILE *fp, char *outPtr, int outsize);
 static void cheCheckBit(char *outPtr, int outsize, uint64 checkbit);
 static void buildhead(FILE	*fp, char *relname, int elemnum);
 static void builddata(SysDataCache *sdc,char *relname);
-static void buildsysid();
-static void loadsysid(FILE *fp, uint64  *sysid, Oid *dboid);
+static void buildsysid(int dicloadtype);
+static void loadsysid(FILE *fp,PgDataDic* pdd);
 static void loadhead(FILE *fp, DataDicHead *ddh);
 static void loaddata(FILE *fp, SysDataCache *sdc, DataDicHead *ddh, int sigsize);
 static XlogFile* fillXlogFile(char *path);
@@ -70,6 +70,8 @@ static void outSigSysTableDictionary(Oid reloid, char* relname,int datasgsize, S
 static void loadSigSysTableDictionary(FILE *fp, int tabid, SysDataCache *sdc, int sigsize);
 static char* logminer_getnext(int search_tabid,SysClassLevel *scl);
 static char* logminer_getFormByOid(int search_tabid, Oid reloid);
+static void setMaxTimeLineId(TimeLineID tempid);
+static TimeLineID getMaxTimeLineId();
 
 
 
@@ -333,7 +335,7 @@ create_dir(char *path)
 
 
 static PgDataDic*
-initDataDicMemory(int dicloadtype)
+initDataDicMemory()
 {
 	PgDataDic *pdd = NULL;
 	DataDictionaryCache = logminer_malloc(sizeof(PgDataDic),0);
@@ -343,7 +345,6 @@ initDataDicMemory(int dicloadtype)
 				errmsg("Out of memory")));
 	memset(DataDictionaryCache, 0, sizeof(PgDataDic));
 	pdd = (PgDataDic *)DataDictionaryCache;
-	pdd->loadtype = dicloadtype;
 	
 	return pdd;
 }
@@ -356,7 +357,7 @@ getDatadictionaryLoadType()
 		return PG_LOGMINER_DICTIONARY_LOADTYPE_NOTHING;
 
 	pdd = (PgDataDic *)DataDictionaryCache;
-	return pdd->loadtype;
+	return pdd->dicloadtype;
 }
 
 bool
@@ -625,7 +626,7 @@ builddata(SysDataCache *sdc,char *relname)
 }
 
 static void
-buildsysid()
+buildsysid(int dicloadtype)
 {
 	FILE	*fp = NULL;
 	uint64	sysid = 0;
@@ -639,21 +640,23 @@ buildsysid()
 	sysid = GetSystemIdentifier();
 	fwrite(&sysid, sizeof(sysid), 1,fp);
 	fwrite(&MyDatabaseId, sizeof(Oid), 1,fp);
+	fwrite(&dicloadtype, sizeof(int),1,fp);
 	checkbit = MyDatabaseId + sysid;
 	fwrite(&checkbit, sizeof(sysid), 1,fp);
 	fclose(fp);
 }
 
 static void
-loadsysid(FILE *fp, uint64  *sysid, Oid *dboid)
+loadsysid(FILE *fp,PgDataDic* pdd)
 {
 	uint64	checkbit = 0;
 	if(!fp)
 		return;
-	fread(sysid,sizeof(uint64),1,fp);
-	fread(dboid,sizeof(Oid),1,fp);
+	fread(&pdd->sysid,sizeof(uint64),1,fp);
+	fread(&pdd->dboid,sizeof(Oid),1,fp);
+	fread(&pdd->dicloadtype,sizeof(int),1,fp);
 	fread(&checkbit,sizeof(uint64),1,fp);
-	if(*sysid + *dboid != checkbit)
+	if(pdd->sysid + pdd->dboid != checkbit)
 	{
 		cleanSystableDictionary();
 		ereport(ERROR,(errmsg("Invalid data dictionary file.")));
@@ -748,6 +751,50 @@ getXlogFiletimeline(XlogFile *xf)
 	return timeline;
 }
 
+static void
+setMaxTimeLineId(TimeLineID tempid)
+{
+	PgDataDic *pdd = NULL;
+
+	if(!DataDictionaryCache)
+		return;
+	pdd = (PgDataDic *)DataDictionaryCache;
+	if(pdd->maxtl < tempid)
+	{
+		if(0 != pdd->maxtl)
+			pdd->mutitimeline = true;
+		pdd->maxtl = tempid;
+	}
+}
+
+static TimeLineID
+getMaxTimeLineId()
+{
+	PgDataDic *pdd = NULL;
+
+	if(!DataDictionaryCache)
+		return 0;
+	
+	pdd = (PgDataDic *)DataDictionaryCache;
+	return pdd->maxtl;
+}
+
+
+void
+checkXlogFileList()
+{
+	PgDataDic *pdd = NULL;
+	
+	if(!DataDictionaryCache)
+		return;
+	pdd = (PgDataDic *)DataDictionaryCache;
+
+	if(pdd->mutitimeline)
+		ereport(NOTICE,
+				(errmsg("There are xlog files on multiple timeline, only the files on latest timeline are parsed.")));
+
+}
+
 
 static void*
 insertXlogFileToList(XlogFile *xf)
@@ -764,6 +811,7 @@ insertXlogFileToList(XlogFile *xf)
 	xfPtr = xflhead;
 	segnoCur = getXlogFilesegno(xf);
 	timelineCur = getXlogFiletimeline(xf);
+	setMaxTimeLineId(timelineCur);
 	while(NULL != xfPtr)
 	{
 		segnoPtr = getXlogFilesegno(xfPtr);
@@ -802,11 +850,14 @@ addxlogfileToList(char *path)
 	
 	XlogFileList xflhead = NULL;
 	XlogFile	 *xfl = NULL;
+	TimeLineID	 timelineCur = 0;
 	if(!XlogfileListCache)
 	{
 		xflhead = fillXlogFile(path);
 		xflhead->tail = xflhead;
 		XlogfileListCache = (char*)xflhead;
+		timelineCur = getXlogFiletimeline(xflhead);
+		setMaxTimeLineId(timelineCur);
 	}
 	else
 	{
@@ -932,7 +983,8 @@ outputSysTableDictionary(char *path, SysClassLevel *scl, bool self)
 	Oid				reloid = 0;
 	char			*relname = NULL;
 	SysDataCache	sdc;
-	char	*dbname_cur = NULL;
+	char			*dbname_cur = NULL;
+	int				dicloadtype = PG_LOGMINER_DICTIONARY_LOADTYPE_OTHER;
 	
 
 	paddingscl(scl);
@@ -965,6 +1017,7 @@ outputSysTableDictionary(char *path, SysClassLevel *scl, bool self)
 		memset(dictionary_path,0,MAXPGPATH);
 		snprintf(dictionary_path, MAXPGPATH, "%s/%s/%s/%s_%s",
 					 DataDir, LOGMINERDIR, LOGMINERDIR_DIC, dbname_cur, PG_LOGMINER_DICTIONARY_DEFAULTNAME);
+		dicloadtype = PG_LOGMINER_DICTIONARY_LOADTYPE_SELF;
 		if(is_file_exist(dictionary_path))
 		{
 			remove(dictionary_path);
@@ -985,7 +1038,7 @@ outputSysTableDictionary(char *path, SysClassLevel *scl, bool self)
 
 	if(is_file_exist(dictionary_path))
 		ereport(ERROR,(errmsg("Dictionary file \"%s\" is already exist.",dictionary_path)));
-	buildsysid();
+	buildsysid(dicloadtype);
 	initcache(&sdc);
 	for(loop = 0; loop < PG_LOGMINER_IMPTSYSCLASS_IMPTNUM; loop++)
 	{
@@ -1021,10 +1074,6 @@ loadSystableDictionary(char *path, SysClassLevel *scl, bool self)
 	int			loop = 0;
 	PgDataDic*	pgddc = NULL;
 	FILE		*fp = NULL;
-	int			dicloadtype = PG_LOGMINER_DICTIONARY_LOADTYPE_OTHER;
-
-	if(DataDictionaryCache)
-		ereport(ERROR,(errmsg("Dictionary has already been loaded.")));
 	
 	paddingscl(scl);
 	pathkind = pathcheck(path);
@@ -1050,7 +1099,6 @@ loadSystableDictionary(char *path, SysClassLevel *scl, bool self)
 			dbname_cur = get_database_name(MyDatabaseId);
 			snprintf(dictionary_path, MAXPGPATH, "%s/%s/%s/%s_%s",
 						 DataDir, LOGMINERDIR, LOGMINERDIR_DIC,dbname_cur, PG_LOGMINER_DICTIONARY_DEFAULTNAME);
-			dicloadtype = PG_LOGMINER_DICTIONARY_LOADTYPE_SELF;
 		}
 	}
 	else if(PG_LOGMINER_DICTIONARY_PATHCHECK_SINGLE == pathkind)
@@ -1080,19 +1128,18 @@ loadSystableDictionary(char *path, SysClassLevel *scl, bool self)
 	{
 		ereport(ERROR,(errmsg("File or directory \"%s\" access is denied or does not exists.",dictionary_path)));
 	}
-	pgddc = initDataDicMemory(dicloadtype);
+	pgddc = initDataDicMemory();
 	
 	fp = fopen(dictionary_path,"rb");
 	if(!fp)
 		ereport(ERROR,(errmsg("File or directory \"%s\" access is denied or does not exists.",dictionary_path)));
-	loadsysid(fp, &pgddc->sysid, &pgddc->dboid);
+	loadsysid(fp, pgddc);
 	for(loop = 0; loop < PG_LOGMINER_IMPTSYSCLASS_IMPTNUM; loop++)
 	{
 		loadSigSysTableDictionary(fp, loop, &pgddc->sdc[loop],scl[loop].datasgsize);
 	}
 	fclose(fp);
 }
-
 
 int
 removexlogfile(char *path)
@@ -1354,6 +1401,14 @@ getNextXlogFile(char *fctx, bool show)
 	logminer_fctx	*lfctx = NULL;
 	XlogFile		*xf = NULL;
 	char			*result = NULL;
+	TimeLineID		maxtl = 0;
+	char			*filedir = NULL,*filename = NULL;
+	XlogFile		*xf_next = NULL;
+	TimeLineID		timelinenext = 0;
+	XLogSegNo		segnonext = 0;
+	TimeLineID		timeline = 0;
+	XLogSegNo		segno = 0;
+	
 	if(!fctx)
 		return;
 	lfctx = (logminer_fctx*)fctx;
@@ -1371,31 +1426,20 @@ getNextXlogFile(char *fctx, bool show)
 	
 	xf = (XlogFile*)lfctx->xlogfileptr;
 	result = xf->filepath;
-	
+
 	if(xf->next)
 	{
-		char		*filedir = NULL,*filename = NULL;
-		XlogFile	*xf_next = NULL;
-		TimeLineID	timelinenext = 0;
-		XLogSegNo	segnonext = 0;
-		TimeLineID	timeline = 0;
-		XLogSegNo	segno = 0;
-
-		/*Checked that if it has been changed the timelineid to next xlogfile*/
-		xf_next = xf->next;
-		split_path_fname(xf->filepath,&filedir,&filename);
-		XLogFromFileName(filename, &timeline, &segno);
-		split_path_fname(xf_next->filepath,&filedir,&filename);
-		XLogFromFileName(filename, &timelinenext, &segnonext);
 		lfctx->xlogfileptr = xf->next;
-
-		if(!show && timeline != timelinenext && segno == segnonext)
-			result = getNextXlogFile(fctx, show);
 	}
 	else
-	{
 		lfctx->hasnextxlogfile = false;
-	}
+	split_path_fname(result,&filedir,&filename);
+	XLogFromFileName(filename, &timeline, &segno);
+	maxtl = getMaxTimeLineId();
+
+	if(maxtl != timeline && !show)
+		result = getNextXlogFile(fctx, show);
+
 	return result;
 }
 

@@ -190,7 +190,7 @@ void cleanMentalvalues();
 bool elemNameFind(char* elenname);
 void cleanAnalyseInfo();
 void padNullToXC();
-char* getTuplemSpace();
+char* getTuplemSpace(int size);
 void cleanTuplemSpace(char* tuplem);
 bool ifquoneed(Form_pg_attribute attrs);
 char* OutputToByte(text* attrpter, int attlen);

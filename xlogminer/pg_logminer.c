@@ -374,19 +374,21 @@ getTupleData_Delete(XLogReaderState *record, char** tuple_info, Oid reloid)
 	if(!data)
 		return;
 	newlen = XLogRecGetDataLen(record) - SizeOfHeapDelete;
-	Assert(newlen <= MaxHeapTupleSize);
 	if(!(XLH_DELETE_CONTAINS_OLD & xlrec->flags))
 		return;
 
 	memcpy((char *) &xlhdr, data, SizeOfHeapHeader);
 	data += SizeOfHeapHeader;
-
-	tuplem = rrctl.tuplem;
+	if(newlen + SizeOfHeapUpdate > MaxHeapTupleSize)
+	{
+		rrctl.tuplem_bigold = getTuplemSpace(newlen + SizeOfHeapUpdate + SizeofHeapTupleHeader);
+		tuplem = rrctl.tuplem_bigold;
+	}
+	else
+		tuplem = rrctl.tuplem;
 	rrctl.reloid = reloid;
 	htup = (HeapTupleHeader)tuplem;
-	memcpy((char *) htup + SizeofHeapTupleHeader,
-		   data,
-		   newlen);
+	memcpy((char *) htup + SizeofHeapTupleHeader,data,newlen);
 	newlen += SizeofHeapTupleHeader;
 	htup->t_infomask2 = xlhdr.t_infomask2;
 	htup->t_infomask = xlhdr.t_infomask;
@@ -520,7 +522,15 @@ getTupleData_Update(XLogReaderState *record, char** tuple_info, char** tuple_inf
 	{
 		recdata = XLogRecGetData(record) + SizeOfHeapUpdate;
 		datalen = XLogRecGetDataLen(record) - SizeOfHeapUpdate;
-		tuplem_old = rrctl.tuplem_old;
+		if(datalen + SizeOfHeapUpdate > MaxHeapTupleSize)
+		{
+			rrctl.tuplem_bigold = getTuplemSpace(datalen + SizeOfHeapUpdate + SizeofHeapTupleHeader);
+			tuplem_old = rrctl.tuplem_bigold;
+		}
+		else
+		{
+			tuplem_old = rrctl.tuplem_old;
+		}
 		htup_old = (HeapTupleHeader)tuplem_old;
 		xlhdr_old  = (xl_heap_header *)recdata;
 		recdata += SizeOfHeapHeader;
@@ -713,6 +723,7 @@ minerHeapUpdate(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 info)
 	sysrel = rrctl.sysrel;
 	/*Assemble "table name","tuple data" and "describe word"*/
 	getUpdateSQL(sql_simple, tupleInfo, tupleInfo_old, &relname, schname, sysrel);
+
 	if(nomalrel && elemNameFind(relname.data)  && 0 == rrctl.prostatu)
 	{
 		/*Get undo sql*/
@@ -933,7 +944,8 @@ parserUpdateSql(XLogMinerSQL *sql_ori, XLogMinerSQL *sql_opt)
 	{
 		reAssembleUpdateSql(sql_ori, false);
 		freeToastTupleHead();
-		appendtoSQL(sql_opt,sql_ori->sqlStr,PG_LOGMINER_SQLPARA_SIMSTEP);
+		if(sql_ori->sqlStr)
+			appendtoSQL(sql_opt,sql_ori->sqlStr,PG_LOGMINER_SQLPARA_SIMSTEP);
 	}
 	return true;
 }
@@ -1209,6 +1221,9 @@ sqlParser(XLogReaderState *record, TimestampTz 	*xacttime)
 	}
 	cleanTuplemSpace(rrctl.tuplem);
 	cleanTuplemSpace(rrctl.tuplem_old);
+	if(rrctl.tuplem_bigold)
+		pfree(rrctl.tuplem_bigold);
+	rrctl.tuplem_bigold = NULL;
 	rrctl.nomalrel = false;
 	rrctl.imprel = false;
 	rrctl.sysrel = false;
@@ -1240,6 +1255,8 @@ xlogminer_load_dictionary(PG_FUNCTION_ARGS)
 	if(!PG_GETARG_DATUM(0))
 		ereport(ERROR,(errmsg("Please enter a file path or directory.")));
 	dictionary = PG_GETARG_TEXT_P(0);
+	if(DataDictionaryCache)
+		ereport(ERROR,(errmsg("Dictionary has already been loaded.")));
 	loadSystableDictionary(text_to_cstring(dictionary), ImportantSysClass, false);
 	writeDicStorePath(text_to_cstring(dictionary));
 	cleanSystableDictionary();
@@ -1406,8 +1423,8 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 	cleanSystableDictionary();
 	checkLogminerUser();
 	logminer_createMemContext();
-	rrctl.tuplem = getTuplemSpace();
-	rrctl.tuplem_old = getTuplemSpace();
+	rrctl.tuplem = getTuplemSpace(0);
+	rrctl.tuplem_old = getTuplemSpace(0);
 	rrctl.lfctx.sendFile = -1;
 
 	if(!PG_GETARG_DATUM(0) || !PG_GETARG_DATUM(1))
@@ -1422,8 +1439,12 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 	rrctl.logprivate.parser_start_xid = startxid;
 	rrctl.logprivate.parser_end_xid = endxid;
 
-
+	loadDicStorePath(dictionary);
+	if(0 == dictionary[0])
+		ereport(ERROR,(errmsg("Xlogfilelist must be loaded first.")));
+	loadSystableDictionary(dictionary, ImportantSysClass,false);
 	dicloadtype = getDatadictionaryLoadType();
+
 	if(PG_LOGMINER_DICTIONARY_LOADTYPE_SELF == dicloadtype)
 	{
 		char *datadic = NULL;
@@ -1433,19 +1454,11 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 		if(datadic)
 			remove(datadic);
 	}
-	else
-	{
-		loadDicStorePath(dictionary);
-		if(0 == dictionary[0])
-			ereport(ERROR,(errmsg("Xlogfilelist must be loaded first.")));
-		loadSystableDictionary(dictionary, ImportantSysClass,false);
-		
-	}
 
 	loadXlogfileList();
 	if(!is_xlogfilelist_exist())
 		ereport(ERROR,(errmsg("Xlogfilelist must be loaded first.")));
-	
+	checkXlogFileList();
 	/*parameter check*/
 	inputParaCheck(starttimestamp, endtimestamp);
 

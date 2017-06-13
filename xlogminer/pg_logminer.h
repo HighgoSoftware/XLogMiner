@@ -192,6 +192,7 @@ typedef struct RecordRecycleCtl
 
 	char				*tuplem;
 	char				*tuplem_old;
+	char				*tuplem_bigold;
 	Oid					reloid;
 	Oid					tbsoid;
 	bool				nomalrel;

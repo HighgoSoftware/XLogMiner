@@ -33,6 +33,8 @@ static bool passOver(char **sql, bool isspace,bool ignoresbrack);
 static bool getPhrases_autolen(char *sql,int loc, XLogMinerSQL *autolen_sql,SQLPassOver *spo,int spoNum);
 static void makeSQLsearchStruct_sba(SQLPassOver *spo,int *loc,int locnum);
 static void getUpdateTupleData(XLogMinerSQL *sql_ori, XLogMinerSQL *sqlTuple, bool fromnewtup);
+static int countCharInString(char* str, char ch);
+char* addSinglequoteFromStr(char* strPara);
 
 
 char* logminer_palloc(int size,int checkflag)
@@ -938,17 +940,20 @@ cleanAnalyseInfo()
 }
 
 char*
-getTuplemSpace()
+getTuplemSpace(int addsize)
 {
-	int			size = 0;
+	int 		size = 0;
 	char*		result = NULL;
-	
-	size = MaxHeapTupleSize + SizeofHeapTupleHeader;
+	if(0 == addsize)
+		size = MaxHeapTupleSize + SizeofHeapTupleHeader;
+	else
+		size = addsize;
 	result = logminer_palloc(size, 0);
 	if(NULL == result)
 		ereport(ERROR,(errmsg("Out of memory.")));
 	return result;
 }
+
 
 void
 cleanTuplemSpace(char* tuplem)
@@ -964,8 +969,8 @@ ifquoneed(Form_pg_attribute attrs)
 	Oid	quoNeedArray[] = {BPCHAROID,VARCHAROID,TEXTOID,BYTEAOID,BOXOID,CASHOID,TSVECTOROID
 	,TSQUERYOID,TIMESTAMPOID,TIMESTAMPTZOID,TIMEOID,TIMETZOID,DATEOID,INTERVALOID,BOOLOID
 	,BYTEAOID,POINTOID,CIRCLEOID,CIDROID,INETOID,MACADDROID,BITOID,VARBITOID,UUIDOID,XMLOID
-	,JSONBOID,3908,3910,LSEGOID,PATHOID,NAMEOID,POLYGONOID,JSONOID};
-	int	arrNum = 33;
+	,JSONBOID,3908,3910,LSEGOID,PATHOID,NAMEOID,POLYGONOID,JSONOID,LINEOID,-1};
+	int	arrNum = 35;
 	int loop = 0;
 
 	if(0 < attrs->attndims)
@@ -1145,7 +1150,7 @@ keepDigitFromStr(char* strPara)
 	strlength = strlen(strPara);
 	strtemp = (char*)palloc0(strlength + 1);
 	if(!strtemp)
-		ereport(ERROR,(errmsg("Out of memory during deleteQueFromStr")));
+		ereport(ERROR,(errmsg("Out of memory during keepDigitFromStr")));
 	
 	while(loopo != strlength)
 	{
@@ -1164,6 +1169,59 @@ keepDigitFromStr(char* strPara)
 	pfree(strtemp);
 }
 
+static int
+countCharInString(char* str, char ch)
+{
+	char	*strPtr = NULL;
+	int 	result = 0;
+	int 	strlength = 0;
+	int 	loop = 0;
+
+	if(!str)
+		return result;
+
+	strlength = strlen(str);
+	strPtr = str;
+	for(;loop < strlength;loop++)
+	{
+		if(*strPtr == ch)
+			result++;
+		strPtr++;
+	}
+	return result;
+}
+
+
+char*
+addSinglequoteFromStr(char* strPara)
+{
+	int 	strlength = 0,loopo = 0,loopt = 0;
+	char*	strtemp = NULL;
+	int		simplequenum = 0;
+
+	if(!strPara)
+		return NULL;
+
+	simplequenum = countCharInString(strPara,'\'');
+	if(0 >= simplequenum)
+		return strPara;
+	
+	strlength = strlen(strPara);
+	strtemp = (char*)palloc0(strlength + simplequenum + 1);
+	if(!strtemp)
+		ereport(ERROR,(errmsg("Out of memory during addSinglequoteFromStr")));
+	
+	while(loopo != strlength)
+	{
+		if('\'' == strPara[loopo])
+		{
+			strtemp[loopt++] = '\'';
+		}
+		strtemp[loopt++] = strPara[loopo++];
+	}
+	return strtemp;
+}
+
 
 char*
 convertAttrToStr(Form_pg_attribute fpa,Oid typoutput, Datum attr)
@@ -1179,6 +1237,11 @@ convertAttrToStr(Form_pg_attribute fpa,Oid typoutput, Datum attr)
 	if(CASHOID == fpa->atttypid)
 	{
 		keepDigitFromStr(resultstr);
+	}
+	else if(JSONOID == fpa->atttypid || TEXTOID == fpa->atttypid || BPCHAROID == fpa->atttypid || VARCHAROID == fpa->atttypid
+		|| XMLOID == fpa->atttypid || NAMEOID == fpa->atttypid || JSONBOID == fpa->atttypid || CHAROID == fpa->atttypid)
+	{
+		resultstr = addSinglequoteFromStr(resultstr);
 	}
 	return resultstr;
 }	

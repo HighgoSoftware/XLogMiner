@@ -575,6 +575,7 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 	bool		attdroped = false;
 	bool		getcondition = false;
 	bool		gettype = false;
+	bool		getchange = false;
 	struct varlena* att_return = NULL;
 	HeapTupleHeader 		htup_old = NULL;
 	
@@ -698,7 +699,14 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 			}
 			appendtoSQL(sql_ori, " = ", PG_LOGMINER_SQLPARA_OTHER);
 			appendtoSQL_simquo(sql_ori, strPara, quoset);
+			getchange = true;
 		}
+	}
+	/*we get nothing changed,discard the update SQL*/
+	if(!getchange)
+	{
+		freeSpace(sql_ori);
+		return;
 	}
 	
 	appendtoSQL(sql_ori, " WHERE ", PG_LOGMINER_SQLPARA_OTHER);
@@ -945,7 +953,10 @@ reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo)
 	/*append ctid condition*/
 	if(undo)
 	{
-		htup = (HeapTupleHeader)rrctl.tuplem;
+		if(rrctl.tuplem_bigold)
+			htup = (HeapTupleHeader)rrctl.tuplem_bigold;
+		else
+			htup = (HeapTupleHeader)rrctl.tuplem;
 		ctid = (Datum)(&htup->t_ctid);
 		ctid_str = DatumGetCString(DirectFunctionCall1(tidout, ctid));
 		if(getcondition)

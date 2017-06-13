@@ -53,7 +53,9 @@ typedef struct PgDataDic{
 	uint64			sysid;
 	Oid				dboid;
 	SysDataCache	sdc[PG_LOGMINER_IMPTSYSCLASS_IMPTNUM];
-	int				loadtype;
+	int				dicloadtype;
+	TimeLineID		maxtl;
+	bool			mutitimeline;
 }PgDataDic;
 
 typedef struct XlogFile	
@@ -98,6 +100,7 @@ char* getnsNameByOid(Oid schoid);
 char* getnsNameByReloid(Oid reloid);
 Oid getRelationOidByRelfileid(Oid relNodeid);
 void freetupdesc(TupleDesc tupdesc);
+void checkXlogFileList();
 
 
 #endif
