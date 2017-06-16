@@ -777,7 +777,10 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 		if(0 == count_value)
 		{
 			if(!attdroped)
+			{
 				appendtoSQL_doubquo(sql_ori, typeinfo->attrs[i]->attname.data, true);
+				appendtoSQL_atttyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
+			}
 			else
 			{
 				memset(temp_name,0,NAMEDATALEN + 3);
@@ -786,13 +789,17 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 			}
 			appendtoSQL(sql_ori, "=", PG_LOGMINER_SQLPARA_OTHER);
 			appendtoSQL_simquo(sql_ori, strPara_old, quoset);
+			appendtoSQL_valuetyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
 			getcondition = true;
 		}
 		else
 		{
 			appendtoSQL(sql_ori, " AND ", PG_LOGMINER_SQLPARA_OTHER);
 			if(!attdroped)
+			{
 				appendtoSQL_doubquo(sql_ori, typeinfo->attrs[i]->attname.data, true);
+				appendtoSQL_atttyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
+			}
 			else
 			{
 				memset(temp_name,0,NAMEDATALEN + 3);
@@ -801,6 +808,7 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 			}
 			appendtoSQL(sql_ori, "=", PG_LOGMINER_SQLPARA_OTHER);
 			appendtoSQL_simquo(sql_ori, strPara_old, quoset);
+			appendtoSQL_valuetyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
 			getcondition = true;
 		}
 		count_value++;
@@ -922,7 +930,10 @@ reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo)
 		if(0 == count_value)
 		{
 			if(!attdroped)
+			{
 				appendtoSQL_doubquo(sql_ori, typeinfo->attrs[i]->attname.data, true);
+				appendtoSQL_atttyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
+			}
 			else
 			{
 				memset(temp_name,0,NAMEDATALEN + 3);
@@ -931,13 +942,17 @@ reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo)
 			}
 			appendtoSQL(sql_ori, "=", PG_LOGMINER_SQLPARA_OTHER);
 			appendtoSQL_simquo(sql_ori, strPara, quoset);
+			appendtoSQL_valuetyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
 			getcondition = true;
 		}
 		else
 		{
 			appendtoSQL(sql_ori, " AND ", PG_LOGMINER_SQLPARA_OTHER);
 			if(!attdroped)
+			{
 				appendtoSQL_doubquo(sql_ori, typeinfo->attrs[i]->attname.data, true);
+				appendtoSQL_atttyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
+			}
 			else
 			{
 				memset(temp_name,0,NAMEDATALEN + 3);
@@ -946,6 +961,7 @@ reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo)
 			}
 			appendtoSQL(sql_ori, "=", PG_LOGMINER_SQLPARA_OTHER);
 			appendtoSQL_simquo(sql_ori, strPara, quoset);
+			appendtoSQL_valuetyptrans(sql_ori, typeinfo->attrs[i]->atttypid);
 			getcondition = true;
 		}
 		count_value++;

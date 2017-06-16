@@ -384,6 +384,15 @@ getDataDicOid()
 	return pdd->dboid;
 }
 
+TimeLineID
+getDataDictl()
+{
+	PgDataDic *pdd = NULL;
+	pdd = (PgDataDic*)DataDictionaryCache;
+	return pdd->datadictl;
+}
+
+
 static bool
 checkXlogFileValid(char *path,int pathkind)
 {
@@ -391,10 +400,23 @@ checkXlogFileValid(char *path,int pathkind)
 	int						length = 0,loop = 0;
 	bool					filenamevalid = true;
 	char					*filedir =NULL, *filename=NULL;
+	TimeLineID				timelinecheck = 0;
+	XLogSegNo				segnocheck = 0;
 	
 	XLogLongPageHeaderData 	xlphd;
 	
 	split_path_fname(path,&filedir,&filename);
+	XLogFromFileName(filename, &timelinecheck, &segnocheck);
+
+	/*timeline check*/
+	if(timelinecheck != getDataDictl())
+	{
+		if(PG_LOGMINER_DICTIONARY_PATHCHECK_DIR != pathkind)
+			ereport(ERROR,(errmsg("The timeline of the xlog file does not match the time line of the data dictionary.")));
+		else
+			return false;
+	}
+	
 	/*file name check*/
 	length = strlen(filename);
 	if(length != 24)
@@ -641,7 +663,8 @@ buildsysid(int dicloadtype)
 	fwrite(&sysid, sizeof(sysid), 1,fp);
 	fwrite(&MyDatabaseId, sizeof(Oid), 1,fp);
 	fwrite(&dicloadtype, sizeof(int),1,fp);
-	checkbit = MyDatabaseId + sysid;
+	fwrite(&ThisTimeLineID, sizeof(int),1,fp);
+	checkbit = MyDatabaseId + sysid + dicloadtype + ThisTimeLineID;
 	fwrite(&checkbit, sizeof(sysid), 1,fp);
 	fclose(fp);
 }
@@ -655,8 +678,10 @@ loadsysid(FILE *fp,PgDataDic* pdd)
 	fread(&pdd->sysid,sizeof(uint64),1,fp);
 	fread(&pdd->dboid,sizeof(Oid),1,fp);
 	fread(&pdd->dicloadtype,sizeof(int),1,fp);
+	fread(&pdd->datadictl,sizeof(int),1,fp);
 	fread(&checkbit,sizeof(uint64),1,fp);
-	if(pdd->sysid + pdd->dboid != checkbit)
+	
+	if(pdd->sysid + pdd->dboid + pdd->dicloadtype + pdd->datadictl != checkbit)
 	{
 		cleanSystableDictionary();
 		ereport(ERROR,(errmsg("Invalid data dictionary file.")));

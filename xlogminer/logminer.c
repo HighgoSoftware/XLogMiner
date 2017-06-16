@@ -1124,7 +1124,9 @@ deleteQueFromStr(char* strPara)
 	
 	while(loopo != strlength)
 	{
-		if('\'' == strPara[loopo])
+		if((('\'' == strPara[loopo]) && (0 == loopo))
+			|| (('\'' == strPara[loopo]) && (strlength - 1 == loopo))
+			|| (('\'' == strPara[loopo]) && (strlength - 1 != loopo && (0 != loopo)) && (' ' == strPara[loopo - 1] || ' ' == strPara[loopo + 1])))
 		{
 			loopo++;
 			continue;
@@ -1239,7 +1241,9 @@ convertAttrToStr(Form_pg_attribute fpa,Oid typoutput, Datum attr)
 		keepDigitFromStr(resultstr);
 	}
 	else if(JSONOID == fpa->atttypid || TEXTOID == fpa->atttypid || BPCHAROID == fpa->atttypid || VARCHAROID == fpa->atttypid
-		|| XMLOID == fpa->atttypid || NAMEOID == fpa->atttypid || JSONBOID == fpa->atttypid || CHAROID == fpa->atttypid)
+		|| XMLOID == fpa->atttypid || NAMEOID == fpa->atttypid || JSONBOID == fpa->atttypid || CHAROID == fpa->atttypid
+		|| 199 == fpa->atttypid || TEXTARRAYOID == fpa->atttypid || 1014 == fpa->atttypid || 1015 == fpa->atttypid
+		|| 143 == fpa->atttypid || 1003 == fpa->atttypid || 3807 == fpa->atttypid || 1002 == fpa->atttypid)
 	{
 		resultstr = addSinglequoteFromStr(resultstr);
 	}

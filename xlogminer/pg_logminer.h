@@ -270,6 +270,8 @@ SysClassLevel *getImportantSysClass();
 void processContrl(char* relname, int contrlkind);
 void appendtoSQL_simquo(XLogMinerSQL *sql_simple, char* ptr, bool quoset);
 void appendtoSQL_doubquo(XLogMinerSQL *sql_simple, char* ptr, bool quoset);
+void appendtoSQL_atttyptrans(XLogMinerSQL *sql_simple, Oid typoid);
+void appendtoSQL_valuetyptrans(XLogMinerSQL *sql_simple, Oid typoid);
 void wipeSQLFromstr(XLogMinerSQL *sql_simple,char *fromstr,char *checkstr);
 void appendBlanktoSQL(XLogMinerSQL *sql_simple);
 

@@ -55,6 +55,7 @@ typedef struct PgDataDic{
 	SysDataCache	sdc[PG_LOGMINER_IMPTSYSCLASS_IMPTNUM];
 	int				dicloadtype;
 	TimeLineID		maxtl;
+	TimeLineID		datadictl;
 	bool			mutitimeline;
 }PgDataDic;
 
@@ -84,6 +85,7 @@ TupleDesc GetDescrByreloid(Oid reloid);
 bool tableIftoastrel(Oid reloid);
 bool getTypeOutputFuncFromDic(Oid type, Oid *typOutput, bool *typIsVarlena);
 Oid getDataDicOid();
+TimeLineID getDataDictl();
 bool loadXlogfileList();
 bool loadDicStorePath(char *dicstorepath);
 void writeXlogfileList();

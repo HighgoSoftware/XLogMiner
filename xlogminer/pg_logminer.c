@@ -169,6 +169,22 @@ appendtoSQL_doubquo(XLogMinerSQL *sql_simple, char* ptr, bool quoset)
 
 }
 
+void
+appendtoSQL_atttyptrans(XLogMinerSQL *sql_simple, Oid typoid)
+{
+	if(POINTOID == typoid || JSONOID == typoid || (POLYGONOID == typoid) || XMLOID == typoid)
+		appendtoSQL(sql_simple, "::text", PG_LOGMINER_SQLPARA_SIMPLE);
+		
+}
+
+void
+appendtoSQL_valuetyptrans(XLogMinerSQL *sql_simple, Oid typoid)
+{
+	if(FLOAT4OID == typoid)
+		appendtoSQL(sql_simple, "::float4", PG_LOGMINER_SQLPARA_SIMPLE);
+}
+
+
 /*
 *
 * Wipe some string from XLogMinerSQL.
