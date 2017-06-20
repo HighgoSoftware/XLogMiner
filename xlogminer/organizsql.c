@@ -8,6 +8,7 @@
 
 #include "postgres.h"
 #include "logminer.h"
+#include "datadictionary.h"
 #include "catalog/pg_proc.h"
 #include "commands/dbcommands_xlog.h"
 #include "catalog/pg_extension.h"
@@ -19,25 +20,6 @@
 #include "catalog/pg_authid.h"
 #include "catalog/pg_type.h"
 #include "utils/builtins.h"
-
-
-
-static PrivKind privkind[] = {
-		{'r',"SELECT"},
-		{'w',"UPDATE"},
-		{'a',"INSERT"},
-		{'d',"DELETE"},
-		{'D',"TRUNCATE"},
-		{'R',"RULE"},
-		{'x',"REFERENCES"},
-		{'X',"EXECUTE"},
-		{'t',"TRIGGER"},
-		{'U',"USAGE"},
-		{'C',"CREATE"},
-		{'T',"TEMPORARY"},
-		{0,NULL}
-			
-};
 
 void 
 xactCommitSQL(char* timestr,XLogMinerSQL *sql_opt,uint8 info)
@@ -194,10 +176,8 @@ getUpdateSQL(XLogMinerSQL *sql_simple, char *tupleInfo, char *tupleInfo_old,Name
 void
 minerDbCreate(XLogReaderState *record, XLogMinerSQL *sql_simple,uint8 info)
 {
-	char				*temp_str = NULL;
 	xl_dbase_create_rec *xlrec = NULL;
 	char				*dbname = NULL;
-	char				*src_dbname = NULL;
 
 	xlrec = (xl_dbase_create_rec *) XLogRecGetData(record);
 	dbname = getdbNameByoid(xlrec->db_id, true);
@@ -432,7 +412,7 @@ mentalTup(HeapTuple tuple, TupleDesc typeinfo ,XLogMinerSQL *sql_simple, bool ol
 	Datum			attr;
 	Datum			attr1;
 	char	   		*strPara;
-	bool			isnull;
+	
 	Oid				typoutput;
 	Oid 			typoutputfromdb;
 	Oid 			typoutputfromdic;
@@ -526,10 +506,10 @@ mentalTup(HeapTuple tuple, TupleDesc typeinfo ,XLogMinerSQL *sql_simple, bool ol
 			{
 				checkVarlena(attr,&att_return);
 				attr1 = CStringGetDatum(att_return);
-				strPara =OutputToByte(attr1, typeinfo->attrs[i]->attlen);
+				strPara =OutputToByte((text *)attr1, typeinfo->attrs[i]->attlen);
 			}
 			else
-				strPara = OutputToByte(attr, typeinfo->attrs[i]->attlen);
+				strPara = OutputToByte((text *)attr, typeinfo->attrs[i]->attlen);
 			quoset = false;
 		}
 		mentalTup_valuedata(natts, i, &values_sql,&att_sql, valueappend, attdroped, quoset, strPara, typeinfo, &firstattget);
@@ -551,16 +531,16 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 {
 	int 		natts = 0;
 	int 		i = 0;
-	Datum		attr = NULL;
+	Datum		attr;
 	Datum		attr1;
 	Datum		ctid;
-	Datum		attr_old = NULL;
-	Datum		attr_old1 = NULL;
+	Datum		attr_old;
+	Datum		attr_old1;
 	char		*strPara = NULL;
 	char	   	*strPara_old = NULL;
 	char	    *ctid_str = NULL;
 	char	   	temp_name[NAMEDATALEN + 3];
-	bool		isnull = false;
+	
 	Oid			typoutput;
 	Oid 		typoutputfromdb;
 	Oid 		typoutputfromdic;
@@ -670,17 +650,17 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 				if(!att_return)
 					/*should not happen*/
 					ereport(ERROR,(errmsg("wrong varlena data")));
-				strPara =OutputToByte(attr1, typeinfo->attrs[i]->attlen);
+				strPara =OutputToByte((text *)attr1, typeinfo->attrs[i]->attlen);
 
 				att_return = NULL;
 				checkVarlena(attr_old,&att_return);
 				attr_old1 = CStringGetDatum(att_return);
-				strPara_old =OutputToByte(attr_old1, typeinfo->attrs[i]->attlen);
+				strPara_old =OutputToByte((text *)attr_old1, typeinfo->attrs[i]->attlen);
 			}
 			else
 			{		
-				strPara =  OutputToByte(attr, typeinfo->attrs[i]->attlen);
-				strPara_old =  OutputToByte(attr_old, typeinfo->attrs[i]->attlen);
+				strPara =  OutputToByte((text *)attr, typeinfo->attrs[i]->attlen);
+				strPara_old =  OutputToByte((text *)attr_old, typeinfo->attrs[i]->attlen);
 			}
 			quoset = false;
 		}
@@ -766,11 +746,11 @@ reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo)
 					/*should not happen*/
 					ereport(ERROR,(errmsg("There are some wrong data in record.")));
 				attr_old1 = CStringGetDatum(att_return);
-				strPara_old =OutputToByte(attr_old1, typeinfo->attrs[i]->attlen);
+				strPara_old =OutputToByte((text *)attr_old1, typeinfo->attrs[i]->attlen);
 			}
 			else
 			{
-				strPara_old =  OutputToByte(attr_old, typeinfo->attrs[i]->attlen);
+				strPara_old =  OutputToByte((text *)attr_old, typeinfo->attrs[i]->attlen);
 			}
 		}
 		
@@ -833,13 +813,12 @@ reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo)
 {
 	int 		natts = 0;
 	int 		i = 0;
-	Datum		attr = NULL;
+	Datum		attr;
 	Datum		attr1;
 	Datum		ctid;
 	char	    *strPara = NULL;
 	char	    *ctid_str = NULL;
 	char	   	temp_name[NAMEDATALEN + 3];
-	bool		isnull = false;
 	Oid			typoutput;
 	Oid 		typoutputfromdb;
 	Oid 		typoutputfromdic;
@@ -920,10 +899,10 @@ reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo)
 					/*should not happen*/
 					ereport(ERROR,(errmsg("There are some wrong data in record.")));
 				attr1 = CStringGetDatum(att_return);
-				strPara =OutputToByte(attr1, typeinfo->attrs[i]->attlen);
+				strPara =OutputToByte((text *)attr1, typeinfo->attrs[i]->attlen);
 			}
 			else
-				strPara = OutputToByte(attr, typeinfo->attrs[i]->attlen);
+				strPara = OutputToByte((text *)attr, typeinfo->attrs[i]->attlen);
 			quoset = false;
 		}
 		

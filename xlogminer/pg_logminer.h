@@ -216,7 +216,7 @@ typedef struct RecordRecycleCtl
 	bool	   			*nulls;
 	Datum	   			*values_old;
 	bool	   			*nulls_old;
-	TupleDesc			*tupdesc;
+	TupleDesc			tupdesc;
 	ToastTuple			*tthead;
 
 	MemoryContext		oldcxt;
@@ -274,6 +274,7 @@ void appendtoSQL_atttyptrans(XLogMinerSQL *sql_simple, Oid typoid);
 void appendtoSQL_valuetyptrans(XLogMinerSQL *sql_simple, Oid typoid);
 void wipeSQLFromstr(XLogMinerSQL *sql_simple,char *fromstr,char *checkstr);
 void appendBlanktoSQL(XLogMinerSQL *sql_simple);
+SysClassLevel *getImportantSysClass(void);
 
 
 #endif

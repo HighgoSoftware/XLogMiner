@@ -3,6 +3,7 @@
 *contrib/xlogminer/logminer.c
 */
 #include "logminer.h"
+#include "datadictionary.h"
 #include "catalog/pg_type.h"
 #include "catalog/pg_constraint.h"
 #include "catalog/pg_language.h"
@@ -12,6 +13,7 @@
 #include "access/xlog_internal.h"
 #include "xlogminer_contents.h"
 #include "utils/bytea.h"
+#include "utils/builtins.h"
 #include "access/tuptoaster.h"
 
 
@@ -25,14 +27,8 @@ RelationKind relkind[]={
 	{LOGMINER_SQLGET_DDL_CREATE_COMPLEX,LOGMINER_RELKINDID_COMPLEX,"COMPLEX",'c',true},
 	{LOGMINER_SQLGET_DDL_CREATE_TABLE,LOGMINER_RELKINDID_TABLE,"TABLE",'P',true}
 };
-
-static bool separateJudge_autolen(char ch, SQLPassOver *spo, int spoNum, int loc);
 static bool separateJudge(char ch ,bool ignoresbrack);
-static bool passOver_autolen(char **sql, bool isspace, SQLPassOver *spo, int spoNum, int loc);
 static bool passOver(char **sql, bool isspace,bool ignoresbrack);
-static bool getPhrases_autolen(char *sql,int loc, XLogMinerSQL *autolen_sql,SQLPassOver *spo,int spoNum);
-static void makeSQLsearchStruct_sba(SQLPassOver *spo,int *loc,int locnum);
-static void getUpdateTupleData(XLogMinerSQL *sql_ori, XLogMinerSQL *sqlTuple, bool fromnewtup);
 static int countCharInString(char* str, char ch);
 char* addSinglequoteFromStr(char* strPara);
 
@@ -66,69 +62,6 @@ void logminer_free(char* ptr,int checkflag)
 	}
 }
 
-
-static bool
-separateJudge_autolen(char ch, SQLPassOver *spo, int spoNum, int loc)
-{
-	bool ifspecialloc = false;
-	int  loop_spo = 0, loop_loc = 0,loop_ch = 0;
-
-	for(;loop_spo < spoNum; loop_spo++)
-	{
-		for(;loop_loc < spo[loop_spo].passlocnum; loop_loc++)
-		{
-			if(spo[loop_spo].passloc[loop_loc] == loc)
-			{
-				ifspecialloc =	true;
-				break;
-			}
-		}
-		if(ifspecialloc)
-			break;
-	}
-	if(!ifspecialloc)
-	{
-		if(PG_LOGMINER_SPACE == ch
-		 || PG_LOGMINER_SBRACK_L == ch
-		 || PG_LOGMINER_SBRACK_R == ch
-		 || PG_LOGMINER_COMMA == ch
-			)
-			return true;
-	}
-	else
-	{
-		if(LOGMINER_PASSKIND_SPECIALCH_CUT == spo[loop_spo].passkind)
-		{
-			for(; loop_ch < spo[loop_spo].specialnum; loop_ch++)
-			{
-				if(spo[loop_spo].specialch[loop_spo] == ch)
-				{
-					return true;
-				}
-			}
-		}
-		else if(LOGMINER_PASSKIND_SPECIALCH_AVOID == spo[loop_spo].passkind)
-		{
-
-			for(; loop_ch < spo[loop_spo].specialnum; loop_ch++)
-			{
-				if(spo[loop_spo].specialch[loop_spo] == ch)
-				{
-					return false;
-				}
-			}
-		
-			if(PG_LOGMINER_SPACE == ch
-				 || PG_LOGMINER_SBRACK_L == ch
-				 || PG_LOGMINER_SBRACK_R == ch
-				 || PG_LOGMINER_COMMA == ch
-			)
-			return true;
-		}
-	}
-	return false;
-}
-
 
 
 static bool
@@ -154,87 +87,11 @@ separateJudge(char ch ,bool ignoresbrack)
 }
 
 static bool
-passOver_autolen(char **sql, bool isspace, SQLPassOver *spo, int spoNum, int loc)
-{
-	int		length = 0;
-	int		recCount = 1;
-	int		entflagnum = 0;
-	bool	inentirety = false;
-	if(NULL == *sql)
-		return false;
-	length = strlen(*sql);
-	if(isspace)
-	{
-		if(!separateJudge_autolen(**sql, spo, spoNum, loc))
-			return true;
-		while(separateJudge_autolen(**sql,spo, spoNum, loc))
-		{
-			(*sql)++;
-			recCount++;
-			if(recCount > length)
-				return false;
-		}
-	}
-	else
-	{
-		if(separateJudge_autolen(**sql,spo, spoNum, loc))
-			return true;
-		if(bbl_Judge(**sql))
-		{
-			entflagnum++;
-			while(0 < entflagnum)
-			{
-				(*sql)++;
-				if(bbl_Judge(**sql))
-					entflagnum++;
-				else if(bbr_Judge(**sql))
-					entflagnum--;
-
-				recCount++;
-				if(recCount > length)
-					return false;
-			}
-			(*sql)++;
-		}
-		else if(sbl_Judge(**sql))
-		{
-			entflagnum++;
-			while(0 < entflagnum)
-			{
-				(*sql)++;
-				if(sbl_Judge(**sql))
-					entflagnum++;
-				else if(sbr_Judge(**sql))
-					entflagnum--;
-
-				recCount++;
-				if(recCount > length)
-					return false;
-			}
-			(*sql)++;
-		}
-		else
-		{
-			while(!separateJudge_autolen(**sql, spo, spoNum, loc))
-			{
-				(*sql)++;
-				recCount++;
-				if(recCount > length)
-					return false;
-			}
-		}
-	}
-	return true;
-}
-
-
-static bool
 passOver(char **sql, bool isspace,bool ignoresbrack)
 {
 	int		length = 0;
 	int		recCount = 1;
 	int		entflagnum = 0;
-	bool	inentirety = false;
 	if(NULL == *sql)
 		return false;
 	length = strlen(*sql);
@@ -365,45 +222,6 @@ getPhrases(char *sql,int loc, char *term, int ignoresbrackph)
 	return result;
 }
 
-static bool
-getPhrases_autolen(char *sql,int loc, XLogMinerSQL *autolen_sql,SQLPassOver *spo,int spoNum)
-{
-	char *sql_ptr = NULL;
-	char *ptr_term_start = NULL;
-	char *ptr_term_end = NULL;
-	char *temp = NULL;
-	bool result = false;
-	int	 termLength = 0;
-	int loop;
-
-	sql_ptr = sql;
-	if(!passOver_autolen(&sql_ptr,true,spo,spoNum,0))
-			return false;
-	for(loop = 1; loop < loc; loop++)
-	{
-		if(!passOver_autolen(&sql_ptr,false,spo,spoNum,loop))
-			return false;
-		if(!passOver_autolen(&sql_ptr,true,spo,spoNum,loop + 1))
-			return false;
-	}
-	
-	ptr_term_start = sql_ptr;
-	passOver_autolen(&sql_ptr,false,spo,spoNum,loop);
-	ptr_term_end = sql_ptr;
-	termLength = ptr_term_end - ptr_term_start;
-	temp = logminer_palloc(termLength + 1,0);
-
-	if(bbl_Judge(*ptr_term_start))
-		memcpy(temp,ptr_term_start + 1,termLength - 2);
-	else
-		memcpy(temp,ptr_term_start,termLength);
-	appendtoSQL(autolen_sql,temp,PG_LOGMINER_SQLPARA_OTHER);
-	result = true;
-	logminer_pfree(temp,0);
-	return result;
-}
-
-
 void 
 addSpace(XLogMinerSQL *sql_simple, int spaceKind)
 {
@@ -462,13 +280,13 @@ void
 cleanMentalvalues()
 {
 	if(rrctl.values)
-			logminer_pfree(rrctl.values,0);
+			logminer_pfree((char *)rrctl.values,0);
 	if(rrctl.nulls)
-			logminer_pfree(rrctl.nulls,0);
+			logminer_pfree((char *)rrctl.nulls,0);
 	if(rrctl.values_old)
-			logminer_pfree(rrctl.values_old,0);
+			logminer_pfree((char *)rrctl.values_old,0);
 	if(rrctl.nulls_old)
-			logminer_pfree(rrctl.nulls_old,0);
+			logminer_pfree((char *)rrctl.nulls_old,0);
 	rrctl.values = NULL;
 	rrctl.nulls = NULL;
 	rrctl.values_old = NULL;
@@ -488,7 +306,7 @@ elemNameFind(char* elenname)
 void
 split_path_fname(const char *path, char **dir, char **fname)
 {
-	char	   *sep;
+	char	   *sep = NULL;
 	int			length_dir = 0;
 	int			length_fname = 0;
 	
@@ -496,6 +314,8 @@ split_path_fname(const char *path, char **dir, char **fname)
 	/* split filepath into directory & filename */
 #ifdef WIN32
 	sep = strrchr(path, '\\');
+	if(NULL == sep)
+		sep = strrchr(path, '/');
 #else
 	sep = strrchr(path, '/');
 #endif
@@ -520,28 +340,6 @@ split_path_fname(const char *path, char **dir, char **fname)
 		*dir = NULL;
 		memcpy(*fname, path, length_dir);
 	}
-}
-
-/*small brack avoid*/
-static void 
-makeSQLsearchStruct_sba(SQLPassOver *spo,int *loc,int locnum)
-{
-
-	int loop = 0;
-
-	if(locnum > LOGMINER_PASSKIND_SPECIALLOC_MAX)
-		return;
-	
-	memset(spo, 0, sizeof(SQLPassOver));
-	for(; loop < locnum; loop++)
-	{
-		spo->passloc[loop] = loc[loop];
-	}
-	spo->passlocnum = locnum;
-	spo->passkind = LOGMINER_PASSKIND_SPECIALCH_AVOID;
-	spo->specialch[0] = '(';
-	spo->specialch[1] = ')';
-	spo->specialnum = 2;
 }
 
 RelationKind*
@@ -611,24 +409,6 @@ xlog_file_open(const char *directory, const char *fname)
 			return fd;
 	}
 	return -1;
-}
-
-static void
-getUpdateTupleData(XLogMinerSQL *sql_ori, XLogMinerSQL *sqlTuple, bool fromnewtup)
-{
-
-	SQLPassOver		SQLpo;
-	int				loc[2] = {0};
-
-	memset(&SQLpo, 0, sizeof(SQLPassOver));
-	
-	loc[0] = LOGMINER_ATTRIBUTE_LOCATION_UPDATE_NEWDATA;
-	loc[1] = LOGMINER_ATTRIBUTE_LOCATION_UPDATE_OLDDATA;
-	makeSQLsearchStruct_sba(&SQLpo,loc,2);
-	if(fromnewtup)
-		getPhrases_autolen(sql_ori->sqlStr,LOGMINER_ATTRIBUTE_LOCATION_UPDATE_NEWDATA, sqlTuple,&SQLpo,1);
-	else
-		getPhrases_autolen(sql_ori->sqlStr,LOGMINER_ATTRIBUTE_LOCATION_UPDATE_OLDDATA, sqlTuple,&SQLpo,1);	
 }
 
 TupleDesc
@@ -767,7 +547,6 @@ curXactCheck(TimestampTz xact_time ,TransactionId xid, bool xactcommit,xl_xact_p
 	{
 		/*reach the nomal valid(input limit) xlog tuple*/
 		int	 loop = 0;
-		char command_sql[NAMEDATALEN] = {0};
 		
 		/*fxc.xid = xid;*/
 		fxc.timestamp = xact_time;
@@ -829,6 +608,7 @@ checkLogminerUser()
 	result = superuser();
 	if(!result)
 		ereport(ERROR,(errmsg("Only the superuser execute xlogminer.")));
+	return result;
 }
 
 bool
@@ -848,7 +628,7 @@ padingminerXlogconts(char* elemname, TransactionId xid,int loc, long elemoid)
 	{
 		if(0 < elemoid)
 		{
-			sprintf(tempName,"(%d)",elemoid);
+			sprintf(tempName,"(%ld)",elemoid);
 		}
 		else
 		{
@@ -1067,7 +847,7 @@ checkVarlena(Datum attr,struct varlena** att_return)
 
 	if(!VARATT_IS_EXTERNAL_ONDISK(attr_varlena))
 	{
-		*att_return = attr;
+		*att_return = (struct varlena *)attr;
 		return;
 	}
 
@@ -1278,12 +1058,12 @@ OutputToByte(text* attrpter, int attlen)
 	else if(-2 == attlen)
 	{
 		len = (strlen((char *) (attrpter)) + 1);
-		attstr = attrpter;
+		attstr = (char *)attrpter;
 	}
 
 	if(-1 ==attlen)
 	{
-		str = DatumGetCString(DirectFunctionCall1(byteaout, attrpter));
+		str = DatumGetCString(DirectFunctionCall1(byteaout, (Datum)attrpter));
 	}
 	else
 	{

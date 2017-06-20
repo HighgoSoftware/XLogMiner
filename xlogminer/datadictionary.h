@@ -18,7 +18,6 @@
 #define PG_LOGMINER_DICTIONARY_PATHCHECK_DIR			2
 #define PG_LOGMINER_DICTIONARY_PATHCHECK_INVALID		3
 #define PG_LOGMINER_DICTIONARY_PATHCHECK_SINGLE			4
-#define	PG_LOGMINER_DICTIONARY_SYSDATACACHE_SIZE		1024
 #define	PG_LOGMINER_XLOGFILE_REPEAT_CHECK_DIFFERENT		1
 #define	PG_LOGMINER_XLOGFILE_REPEAT_CHECK_SAME			2
 #define	PG_LOGMINER_XLOGFILE_REPEAT_CHECK_SEGSAME		3
@@ -73,24 +72,24 @@ char* outputSysTableDictionary(char *path, SysClassLevel *scl, bool self);
 void loadSystableDictionary(char *path, SysClassLevel *scl, bool self);
 int addxlogfile(char *path);
 int removexlogfile(char *path);
-void cleanSystableDictionary();
-void cleanXlogfileList();
+void cleanSystableDictionary(void);
+void cleanXlogfileList(void);
 bool getRelationOidByName(char* relname, Oid* reloid, bool gettemptable);
-uint64 getDataDicSysid();
-int getDatadictionaryLoadType();
-bool is_xlogfilelist_exist();
+uint64 getDataDicSysid(void);
+int getDatadictionaryLoadType(void);
+bool is_xlogfilelist_exist(void);
 int getXlogFileNum();
 int getRelationNameByOid(Oid reloid, NameData* relname);
 TupleDesc GetDescrByreloid(Oid reloid);
 bool tableIftoastrel(Oid reloid);
 bool getTypeOutputFuncFromDic(Oid type, Oid *typOutput, bool *typIsVarlena);
-Oid getDataDicOid();
-TimeLineID getDataDictl();
+Oid getDataDicOid(void);
+TimeLineID getDataDictl(void);
 bool loadXlogfileList();
 bool loadDicStorePath(char *dicstorepath);
-void writeXlogfileList();
+void writeXlogfileList(void);
 void writeDicStorePath(char* dicstorepath);
-void dropAnalyseFile();
+void dropAnalyseFile(void);
 char* getNextXlogFile(char *fctx, bool show);
 void searchSysClass( SystemClass *sys_class,int	*sys_classNum);
 char* getdbNameByoid(Oid dboid, bool createdb);
@@ -102,7 +101,9 @@ char* getnsNameByOid(Oid schoid);
 char* getnsNameByReloid(Oid reloid);
 Oid getRelationOidByRelfileid(Oid relNodeid);
 void freetupdesc(TupleDesc tupdesc);
-void checkXlogFileList();
+void checkXlogFileList(void);
+int getXlogFileNum(void);
+bool loadXlogfileList(void);
 
 
 #endif

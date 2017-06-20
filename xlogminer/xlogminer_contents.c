@@ -9,6 +9,7 @@
 #include "logminer.h"
 #include "xlogminer_contents.h"
 #include "utils/builtins.h"
+#include "catalog/indexing.h"
 #include "datadictionary.h"
  
 
@@ -21,12 +22,12 @@ addSQLspace()
 	
 	if(!srctl.xcf)
 	{
-		srctl.xcf = (XlogminerContentsFirst*)logminer_palloc(addstep * sizeof(XlogminerContentsFirst),0);
+		srctl.xcf = (char *)logminer_palloc(addstep * sizeof(XlogminerContentsFirst),0);
 		srctl.xcftotnum = addstep;
 	}
 	else
 	{
-		xcftemp = logminer_palloc((addstep + srctl.xcftotnum)*sizeof(XlogminerContentsFirst),0);
+		xcftemp = (XlogminerContentsFirst *)logminer_palloc((addstep + srctl.xcftotnum)*sizeof(XlogminerContentsFirst),0);
 		if(!xcftemp)
 			ereport(ERROR,
 					(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
@@ -34,7 +35,7 @@ addSQLspace()
 		memcpy(xcftemp, srctl.xcf, srctl.xcftotnum * sizeof(XlogminerContentsFirst));
 		
 		logminer_pfree(srctl.xcf,0);
-		srctl.xcf = xcftemp;
+		srctl.xcf = (char *)xcftemp;
 		srctl.xcftotnum += addstep;
 	}
 	padNullToXC();
@@ -180,19 +181,19 @@ InsertXlogContentsTuple(Form_xlogminer_contents fxc)
 	tup = heap_form_tuple(RelationGetDescr(xlogminer_contents), values, nulls);
 	simple_heap_insert(xlogminer_contents, tup);
 	CatalogUpdateIndexes(xlogminer_contents, tup);
-	logminer_pfree(op_text,0);
+	logminer_pfree((char *)op_text,0);
 	op_text = NULL;
-	logminer_pfree(op_undo,0);
+	logminer_pfree((char *)op_undo,0);
 	op_undo = NULL;
-	logminer_pfree(op_type,0);
+	logminer_pfree((char *)op_type,0);
 	op_type = NULL;
-	logminer_pfree(record_database,0);
+	logminer_pfree((char *)record_database,0);
 	record_database = NULL;
-	logminer_pfree(record_user,0);
+	logminer_pfree((char *)record_user,0);
 	record_user = NULL;
-	logminer_pfree(record_tablespace,0);
+	logminer_pfree((char *)record_tablespace,0);
 	record_tablespace = NULL;
-	logminer_pfree(record_schema,0);
+	logminer_pfree((char *)record_schema,0);
 	record_schema = NULL;
 	
 	if(tup)

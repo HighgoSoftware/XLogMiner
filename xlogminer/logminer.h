@@ -169,6 +169,7 @@ bool getPhrases(char *sql,int loc, char *term, int ignoresbrackph);
 void addSpace(XLogMinerSQL *sql_simple, int spaceKind);
 void cleanSpace(XLogMinerSQL *minersql);
 void freeSpace(XLogMinerSQL *minersql);
+void cleanMentalvalues(void);
 void split_path_fname(const char *path, char **dir, char **fname);
 RelationKind* getRelKindInfo();
 void xactCommitSQL(char* timestr,XLogMinerSQL *sql_opt,uint8 info);
@@ -179,6 +180,7 @@ TupleDesc makeOutputXlogDesc();
 bool inputParaCheck();
 bool curXactCheck(TimestampTz xact_time ,TransactionId xid, bool xactcommit,xl_xact_parsed_commit *parsed_commit);
 char* logminer_palloc(int size,int checkflag);
+void logminer_pfree(char* ptr,int checkflag);
 void logminer_free(char* ptr,int checkflag);
 char* logminer_malloc(int size,int checkflag);
 void logminer_free(char* ptr,int checkflag);
@@ -206,7 +208,28 @@ void checkVarlena(Datum attr,struct varlena** att_return);
 void deleteQueFromStr(char* strPara);
 void keepDigitFromStr(char* strPara);
 void fixPathEnd(char *path);
+RelationKind* getRelKindInfo(void);
+TupleDesc makeOutputXlogDesc(void);
+bool inputParaCheck(text *st, text *et);
+void logminer_createMemContext(void);
+void logminer_switchMemContext(void);
+bool checkLogminerUser(void);
+void padNullToXC(void);
+void cleanAnalyseInfo(void);
+void freeToastTupleHead(void);
 
 
+/*
+ * organizsql.c funcitons declare here
+ */
+extern void getInsertSQL(XLogMinerSQL *sql_simple, char *tupleInfo, NameData *relname, char* schname, bool sysrel);
+extern void getDeleteSQL(XLogMinerSQL *sql_simple, char *tupleInfo, NameData *relname, char* schname, bool sysrel, bool undo);
+extern void getUpdateSQL(XLogMinerSQL *sql_simple, char *tupleInfo, char *tupleInfo_old,NameData *relname, char* schname, bool sysrel);
+extern void minerDbCreate(XLogReaderState *record, XLogMinerSQL *sql_simple,uint8 info);
+extern void mentalTup_nulldata(int natts, int index, XLogMinerSQL *values_sql,XLogMinerSQL *att_sql, bool valueappend, bool attdroped, bool *firstattget);
+extern void mentalTup_valuedata(int natts, int index, XLogMinerSQL *values_sql,XLogMinerSQL *att_sql, bool valueappend, bool attdroped, bool quoset,char* strPara, TupleDesc typeinfo,bool *firstattget);
+extern void mentalTup(HeapTuple tuple, TupleDesc typeinfo ,XLogMinerSQL *sql_simple, bool olddata);
+extern void reAssembleUpdateSql(XLogMinerSQL *sql_ori, bool undo);
+extern void reAssembleDeleteSql(XLogMinerSQL *sql_ori, bool undo);
 #endif
 

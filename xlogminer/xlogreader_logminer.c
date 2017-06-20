@@ -12,7 +12,12 @@
 #include "access/xlog_internal.h"
 #include "access/xlogreader.h"
 #include "catalog/pg_control.h"
+#include "utils/elog.h"
 #include "pg_logminer.h"
+#include "datadictionary.h"
+
+#include <sys/types.h>
+#include <unistd.h>
 
 #define MAX_ERRORMSG_LEN 1000
 
@@ -372,7 +377,7 @@ XLogReadRecord_logminer(XLogReaderState *state, XLogRecPtr RecPtr, char **errorm
 		/* XXX: more validation should be done here */
 		if (total_len < SizeOfXLogRecord)
 		{
-			ereport(NOTICE,(errmsg("It has been loaded the xlog file without the normal end.",(uint32) (RecPtr >> 32), (uint32) RecPtr)));
+			ereport(NOTICE,(errmsg("It has been loaded the xlog file without the normal end.")));
 			goto err;
 		}
 		gotheader = false;
@@ -991,12 +996,11 @@ XLogMinerXLogRead(const char *directory, TimeLineID *timeline_id,
 		readbytes = read(*sendFile, p, segbytes);
 		if (readbytes <= 0)
 		{
-			int			err = errno;
 			char		fname[MAXPGPATH];
-
+			int 		err = errno;
 			XLogFileName(fname, tid, *sendSegNo);
-			ereport(ERROR,(errmsg("could not read from log segment %s, offset %d, length %d: %s"),
-						fname, *sendOff, segbytes, strerror(err)));
+			ereport(ERROR,(errmsg("could not read from log segment %s, offset %d, length %d: %s",
+						fname, *sendOff, segbytes, strerror(err))));
 		}
 
 		/* Update state for read */

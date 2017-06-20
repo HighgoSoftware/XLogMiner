@@ -29,7 +29,7 @@
 #include "utils/lsyscache.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#include <unistd.h>
 
 	
 char* DataDictionaryCache = NULL;
@@ -63,10 +63,10 @@ static void loaddata(FILE *fp, SysDataCache *sdc, DataDicHead *ddh, int sigsize)
 static XlogFile* fillXlogFile(char *path);
 static XLogSegNo getXlogFilesegno(XlogFile *xf);
 static TimeLineID getXlogFiletimeline(XlogFile *xf);
-static void* insertXlogFileToList(XlogFile *xf);
+static void insertXlogFileToList(XlogFile *xf);
 static void addxlogfileToList(char *path);
 static void removexlogfileFromList(XlogFile *removexlogfile);
-static void outSigSysTableDictionary(Oid reloid, char* relname,int datasgsize, SysDataCache *sdc);
+static bool outSigSysTableDictionary(Oid reloid, char* relname,int datasgsize, SysDataCache *sdc);
 static void loadSigSysTableDictionary(FILE *fp, int tabid, SysDataCache *sdc, int sigsize);
 static char* logminer_getnext(int search_tabid,SysClassLevel *scl);
 static char* logminer_getFormByOid(int search_tabid, Oid reloid);
@@ -196,7 +196,7 @@ scanDir_getfilenum(char *scdir)
 	struct dirent*	ent = NULL;
 	
 	if(!scdir)
-		return;
+		return filecount;
 	if (NULL == (pDir = opendir(scdir)))
 		ereport(ERROR,
 				(errcode(ERRCODE_SYSTEM_ERROR),
@@ -230,7 +230,7 @@ scanDir_getfilename(char *scdir,NameData *datafilename, bool sigfile)
 	struct dirent*	ent = NULL;
 	
 	if(!scdir)
-		return;
+		return filecount;
 	if (NULL == (pDir = opendir(scdir)))
 		ereport(ERROR,
 				(errcode(ERRCODE_SYSTEM_ERROR),
@@ -629,7 +629,7 @@ buildhead(FILE	*fp, char *relname, int elemnum)
 	memcpy(ddh.relname.data, relname, strlen(relname));
 	ddh.elemnum = elemnum;
 	fwrite(&ddh, sizeof(DataDicHead), 1, fp);
-	proCheckBit(fp, &ddh, sizeof(DataDicHead));
+	proCheckBit(fp, (char *)&ddh, sizeof(DataDicHead));
 }
 
 static void
@@ -701,7 +701,7 @@ loadhead(FILE *fp, DataDicHead *ddh)
 		return;
 	fread(ddh,sizeof(DataDicHead),1,fp);
 	fread(&checkbit,sizeof(uint64),1,fp);
-	cheCheckBit(ddh, sizeof(DataDicHead), checkbit);
+	cheCheckBit((char *)ddh, sizeof(DataDicHead), checkbit);
 }
 
 static void
@@ -821,7 +821,7 @@ checkXlogFileList()
 }
 
 
-static void*
+static void
 insertXlogFileToList(XlogFile *xf)
 {
 	XlogFileList			xflhead = NULL;
@@ -849,7 +849,7 @@ insertXlogFileToList(XlogFile *xf)
 			{
 				/*add to head*/
 				xf->next = xfPtr;
-				XlogfileListCache = xf;
+				XlogfileListCache = (char *)xf;
 			}
 			else
 			{
@@ -918,7 +918,7 @@ removexlogfileFromList(XlogFile *removexlogfile)
 			{
 				xfptr_prv->next = xfptr_cur->next;
 			}
-			logminer_free(xfptr_cur,0);
+			logminer_free((char *)xfptr_cur,0);
 			xfptr_cur = NULL;
 			return;
 		}
@@ -943,7 +943,7 @@ cleanXlogfileList()
 	{
 		listNext = listPtr->next;
 		if(listPtr)
-			logminer_free(listPtr,0);
+			logminer_free((char *)listPtr,0);
 		listPtr = listNext;
 	}
 	XlogfileListCache = NULL;
@@ -971,16 +971,16 @@ getXlogFileNum()
 	return xlogfilecount;
 }
 
-static void 
+static bool 
 outSigSysTableDictionary(Oid reloid, char* relname,int datasgsize, SysDataCache *sdc)
 {
 	bool				result = false;
-	Oid					oid_temp = 0;
+	
 	Relation			pgrel = NULL;
 	HeapScanDesc		scan = NULL;
 	HeapTuple			tuple = NULL;
-	Form_pg_class		classForm = NULL;
-	char				*curdata = NULL;
+	
+	
 	
 	pgrel = heap_open(reloid, AccessShareLock);
 	if(!pgrel)
@@ -1169,16 +1169,16 @@ loadSystableDictionary(char *path, SysClassLevel *scl, bool self)
 int
 removexlogfile(char *path)
 {
-	int			pathkind = 0;
-	int			filenum = 0;
-	int			loop = 0;
+	
+	
+	
 	int			removenum = 0;
 	XlogFile	*xftemp = NULL;
 	XlogFile	*xfptr = NULL;
 	XlogFileList xfl = NULL;
 	char		*filedir = NULL, *filename = NULL;
-	TimeLineID	timeline = 0;
-	XLogSegNo	segno = 0;
+	
+
 
 	if(0 == strcmp("",path))
 		ereport(ERROR,(errmsg("Please enter a file path or directory.")));
@@ -1232,7 +1232,7 @@ addxlogfile(char *path)
 			ereport(ERROR,(errmsg("File or directory \"%s\" access is denied or does not exists.",path)));
 	}
 	else if(PG_LOGMINER_DICTIONARY_PATHCHECK_NULL == pathkind)
-		ereport(ERROR,(errmsg("Please enter a file path or directory.",path)));
+		ereport(ERROR,(errmsg("Please enter a file path or directory.")));
 
 	memset(dictionary_path, 0, MAXPGPATH);
 	if(PG_LOGMINER_DICTIONARY_PATHCHECK_FILE == pathkind || PG_LOGMINER_DICTIONARY_PATHCHECK_SINGLE == pathkind)
@@ -1295,7 +1295,7 @@ loadXlogfileList()
 
 	fp = fopen(xlogfilelist_path, "r");
 	if(!fp)
-		return;
+		return getfile;
 	
 	while(getdata)
 	{
@@ -1338,7 +1338,7 @@ writeXlogfileList()
 {
 	FILE					*fp = NULL;
 	XlogFileList			xflhead = NULL;
-	XlogFile				*xfPre = NULL;
+	
 	XlogFile				*xfPtr = NULL;
 	char					logminer_dir[MAXPGPATH] = {0};
 
@@ -1354,7 +1354,7 @@ writeXlogfileList()
 						 DataDir, LOGMINERDIR);
 			if(!create_dir(logminer_dir))
 				ereport(ERROR,
-					   (errmsg("fail to create dir",logminer_dir)));
+					   (errmsg("fail to create dir")));
 	}
 	fp = fopen(xlogfilelist_path, "w");
 	if(!fp)
@@ -1392,7 +1392,7 @@ writeDicStorePath(char* dicstorepath)
 
 		snprintf(logminer_dir, MAXPGPATH, "%s/%s",DataDir, LOGMINERDIR);
 		if(!create_dir(logminer_dir))
-			ereport(ERROR,(errmsg("fail to create dir",logminer_dir)));
+			ereport(ERROR,(errmsg("fail to create dir")));
 	}
 	fp = fopen(dicstore_path, "w");
 	if(!fp)
@@ -1406,8 +1406,8 @@ void
 dropAnalyseFile()
 {
 	char		temp[MAXPGPATH] = {0};
-	NameData	*filenamelist = NULL;
-	int			filenum = 0,i = 0;
+	
+	
 
 	
 	snprintf(temp, MAXPGPATH, "%s/%s/%s",DataDir, LOGMINERDIR, LOGMINERDIR_DIC);
@@ -1428,14 +1428,14 @@ getNextXlogFile(char *fctx, bool show)
 	char			*result = NULL;
 	TimeLineID		maxtl = 0;
 	char			*filedir = NULL,*filename = NULL;
-	XlogFile		*xf_next = NULL;
-	TimeLineID		timelinenext = 0;
-	XLogSegNo		segnonext = 0;
+	
+	
+	
 	TimeLineID		timeline = 0;
 	XLogSegNo		segno = 0;
 	
 	if(!fctx)
-		return;
+		return NULL;
 	lfctx = (logminer_fctx*)fctx;
 	
 	if(!lfctx->xlogfileptr)
@@ -1454,7 +1454,7 @@ getNextXlogFile(char *fctx, bool show)
 
 	if(xf->next)
 	{
-		lfctx->xlogfileptr = xf->next;
+		lfctx->xlogfileptr = (char *)xf->next;
 	}
 	else
 		lfctx->hasnextxlogfile = false;
@@ -1503,7 +1503,7 @@ logminer_getFormByOid(int search_tabid, Oid reloid)
 	while(NULL != (serchPtr = logminer_getnext(search_tabid,scl)))
 	{
 		fpg = serchPtr + sizeof(Oid);
-		oidPtr = serchPtr;
+		oidPtr = (int *)serchPtr;
 		if(reloid == *oidPtr)
 		{
 			result = fpg;
@@ -1520,7 +1520,7 @@ searchSysClass( SystemClass *sys_class,int	*sys_classNum)
 	PgDataDic 			*pdd = NULL;
 	Form_pg_class		fpc = NULL;
 	char 				*serchPtr = NULL;
-	char				*result = NULL;
+	
 	SysClassLevel 		*scl = NULL;
 	int					search_tabid = 0;
 	int					syscount = 0;
@@ -1575,7 +1575,7 @@ gettbsNameByoid(Oid tbsoid)
 
 	if(0 == tbsoid)
 		tbsoid = 1663;
-	fpt = (Form_pg_database)logminer_getFormByOid(PG_LOGMINER_IMPTSYSCLASS_PGTABLESPACE, tbsoid);
+	fpt = (Form_pg_tablespace)logminer_getFormByOid(PG_LOGMINER_IMPTSYSCLASS_PGTABLESPACE, tbsoid);
 	if(fpt)
 		result = fpt->spcname.data;
 	return result;
@@ -1687,8 +1687,8 @@ getRelationOidByRelfileid(Oid relNodeid)
 
 	while(NULL != (serchPtr = logminer_getnext(search_tabid ,scl)))
 	{
-		fpc = serchPtr + sizeof(Oid);
-		oidPtr = serchPtr;
+		fpc = (Form_pg_class)(serchPtr + sizeof(Oid));
+		oidPtr = (int *)serchPtr;
 		if(relNodeid == fpc->relfilenode)
 		{
 			result = *oidPtr;
@@ -1712,7 +1712,7 @@ GetDescrByreloid(Oid reloid)
 	int					atts_loop = 0;
 	int					pg_class_tabid = 0;
 	int					pg_attribute_tabid = 0;
-	MemoryContext 		oldcxt = NULL;
+	
 
 	scl = getImportantSysClass();
 	pdd = (PgDataDic *)DataDictionaryCache;

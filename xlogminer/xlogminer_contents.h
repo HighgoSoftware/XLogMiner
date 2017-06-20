@@ -45,8 +45,14 @@ typedef FormData_xlogminer_contents *Form_xlogminer_contents;
 #define Anum_xlogminer_contents_op_text								9
 #define Anum_xlogminer_contents_op_undo								10
 
+/*
+ * functions prototype
+ */
 void InsertXlogContentsTuple(Form_xlogminer_contents fxc);
 void UpdateXlogContentsTuple(Form_xlogminer_contents fxc);
+void addSQLspace(void);
+void cleanSQLspace(void);
+void freeSQLspace(void);
 
 
 #endif

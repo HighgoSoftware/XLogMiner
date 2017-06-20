@@ -101,7 +101,7 @@ static void minerHeapInsert(XLogReaderState *record, XLogMinerSQL *sql_simple,ui
 static void minerHeapDelete(XLogReaderState *record, XLogMinerSQL *sql_simple,uint8 info);
 static void minerHeapUpdate(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 info);
 static void minerHeap2MutiInsert(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 info)	;
-static bool* getNextRecord();
+static bool getNextRecord();
 static int getsqlkind(char *sqlheader);
 static bool parserInsertSql(XLogMinerSQL *sql_ori, XLogMinerSQL *sql_opt);
 static bool parserDeleteSql(XLogMinerSQL *sql_ori, XLogMinerSQL *sql_opt);
@@ -198,8 +198,8 @@ void
 wipeSQLFromstr(XLogMinerSQL *sql_simple,char *fromstr,char *checkstr)
 {
 	char	*strPtr = NULL;
-	int 	length_str = 0, length_sql = 0,length_ptr = 0;
-	int 	loop = 1;
+	int 	length_ptr;
+	
 
 	if(NULL == sql_simple || NULL == sql_simple->sqlStr ||NULL == fromstr)
 		return;
@@ -458,7 +458,7 @@ getTupleData_Update(XLogReaderState *record, char** tuple_info, char** tuple_inf
 	xl_heap_header *xlhdr = NULL;
 	xl_heap_header *xlhdr_old;
 	uint32			newlen = 0;
-	int				temp_length = 0;
+	
 	char			*tuplem;
 	char			*tuplem_old;
 	HeapTupleHeader htup;
@@ -470,7 +470,7 @@ getTupleData_Update(XLogReaderState *record, char** tuple_info, char** tuple_inf
 	char 			*recdata = NULL;
 	char	   		*newp = NULL;
 	RelFileNode 			target_node;
-	BlockNumber 			blkno;
+	
 	ItemPointerData 		target_tid;
 	ItemPointerData 		target_tid_old;
 	BlockNumber 			newblk;
@@ -584,7 +584,7 @@ getTupleData_Update(XLogReaderState *record, char** tuple_info, char** tuple_inf
 void 
 processContrl(char* relname, int	contrlkind)
 {
-	char				cmp_temp[7];
+	
 	if(PG_LOGMINER_XLOG_NOMAL == rrctl.system_init_record)
 		return;
 	if(PG_LOGMINER_CONTRLKIND_FIND == contrlkind &&
@@ -722,7 +722,7 @@ minerHeapDelete(XLogReaderState *record, XLogMinerSQL *sql_simple,uint8 info)
 static void
 minerHeapUpdate(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 info)
 {
-	char				*temp_str;
+	
 	NameData			relname;
 	char*				schname;
 	bool				sqlFind = false;
@@ -766,7 +766,7 @@ minerHeap2MutiInsert(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 in
 	char	   				*data = NULL;
 	char	   				*tldata = NULL;
 	Size					tuplelen = 0;
-	int						loop = 0;
+	
 	BlockNumber 			blkno = 0;
 	ItemPointerData 		target_tid;
 	Oid						reloid = 0;
@@ -880,7 +880,7 @@ minerHeap2MutiInsert(XLogReaderState *record, XLogMinerSQL *sql_simple, uint8 in
 }
 
 /*find next xlog record and store into rrctl.xlogreader_state*/
-static bool* 
+static bool
 getNextRecord()
 {
 	XLogRecord *record_t;	
@@ -912,8 +912,8 @@ static bool
 parserInsertSql(XLogMinerSQL *sql_ori, XLogMinerSQL *sql_opt)
 {
 	char tarTable[NAMEDATALEN] = {0};
-	int loop;
-	int tabid = 0;
+	
+	
 
 	getPhrases(sql_ori->sqlStr, LOGMINER_INSERT_TABLE_NAME, tarTable, 0);
 
@@ -934,8 +934,8 @@ parserDeleteSql(XLogMinerSQL *sql_ori, XLogMinerSQL *sql_opt)
 {
 
 	char tarTable[NAMEDATALEN] = {0};
-	int loop;
-	int tabid = 0;	
+	
+		
 
 	getPhrases(sql_ori->sqlStr, LOGMINER_DELETE_TABLE_NAME, tarTable, 0);
 	if(rrctl.nomalrel && (elemNameFind(tarTable) || 0 == strcmp("NULL",tarTable)))
@@ -952,8 +952,8 @@ static bool
 parserUpdateSql(XLogMinerSQL *sql_ori, XLogMinerSQL *sql_opt)
 {
 	char tarTable[NAMEDATALEN] = {0};
-	int  loop = 0;
-	int	 tabid = 0;
+	
+	
 
 	getPhrases(sql_ori->sqlStr, LOGMINER_ATTRIBUTE_LOCATION_UPDATE_RELNAME, tarTable, 0);
 	if(rrctl.nomalrel && (elemNameFind(tarTable) || 0 == strcmp("NULL",tarTable)))
@@ -977,10 +977,10 @@ static void
 XLogMinerRecord_heap(XLogReaderState *record, XLogMinerSQL *sql_simple)
 {
 	uint8				info;
-	char				*temp_str;
-	RelFileNode 		*node;
-	Oid					reloid;
-	NameData			relname;
+	
+	
+	
+	
 	
 	info = XLogRecGetInfo(record) & ~XLR_INFO_MASK;
 	info &= XLOG_HEAP_OPMASK;
@@ -1019,10 +1019,7 @@ static void
 XLogMinerRecord_dbase(XLogReaderState *record, XLogMinerSQL *sql_simple)
 {
 	uint8				info;
-	char				*temp_str;
-	RelFileNode 		*node;
-	Oid					reloid;
-	NameData			relname;
+	
 
 	info = XLogRecGetInfo(record) & ~XLR_INFO_MASK;
 	if(XLOG_DBASE_CREATE == info)
@@ -1084,10 +1081,6 @@ static bool
 XLogMinerRecord(XLogReaderState *record, XLogMinerSQL *sql_simple,TimestampTz *xacttime)
 {
 	uint8				info;
-	char				*temp_str;
-	RelFileNode 		*node;
-	Oid					reloid;
-	NameData			relname;
 	bool				getxact = false;
 	uint8				rmid = 0;
 
@@ -1135,15 +1128,14 @@ static bool
 sqlParser(XLogReaderState *record, TimestampTz 	*xacttime)
 {
 	char command_sql[NAMEDATALEN] = {0};
-	XlogminerContentsFirst		*xcf = NULL;
+	
 	XLogMinerSQL	sql_reass;
 	XLogMinerSQL	sql;
 	int				sskind = 0;
-	int				loop = 0;
+	
 	bool			getxact = false;
 	bool			getsql = false;
 	Oid				server_dboid = 0;
-	Oid				server_tbsoid = 0;
 	
 	memset(&sql_reass, 0, sizeof(XLogMinerSQL));
 	memset(&sql, 0, sizeof(XLogMinerSQL));
@@ -1383,7 +1375,7 @@ xlogminer_xlogfile_list(PG_FUNCTION_ARGS)
 		loadXlogfileList();
 		if(!is_xlogfilelist_exist())
 			ereport(ERROR,(errmsg("Xlogfilelist has not been loaded or has been removed.")));
-		fctx = logminer_palloc(sizeof(logminer_fctx),0);
+		fctx = (logminer_fctx *)logminer_palloc(sizeof(logminer_fctx),0);
 		fctx->hasnextxlogfile= true;
 		funcctx = SRF_FIRSTCALL_INIT();
 		funcctx->user_fctx = fctx;
@@ -1415,8 +1407,6 @@ xlog analyse begin here
 */
 Datum pg_minerXlog(PG_FUNCTION_ARGS)
 {
-	XLogMinerSQL			*simplesql;
-	XLogRecord				*record;
 	TimestampTz				xacttime = 0;
 	bool					getrecord = true;
 	bool					getxact = false;
@@ -1425,7 +1415,6 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 	int32					startxid = 0;
 	int32					endxid = 0;
 	XLogSegNo				segno;
-	char					mentpara = 0;
 	char					*directory = NULL;
 	char					*fname = NULL;
 	char					*firstxlogfile = NULL;
@@ -1445,8 +1434,8 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 
 	if(!PG_GETARG_DATUM(0) || !PG_GETARG_DATUM(1))
 		ereport(ERROR,(errmsg("The time parameter can not be null.")));
-	starttimestamp = PG_GETARG_CSTRING(0);
-	endtimestamp = PG_GETARG_CSTRING(1);
+	starttimestamp = (text *)PG_GETARG_CSTRING(0);
+	endtimestamp = (text *)PG_GETARG_CSTRING(1);
 	startxid = PG_GETARG_INT32(2);
 	endxid = PG_GETARG_INT32(3);
 	if(0 > startxid || 0 > endxid)
@@ -1504,7 +1493,7 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 	rrctl.xlogreader_state = XLogReaderAllocate(XLogMinerReadPage, &rrctl.logprivate);
 	XLogSegNoOffsetToRecPtr(segno, 0, rrctl.logprivate.startptr);
 	if(!rrctl.xlogreader_state)
-		ereport(ERROR,(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),errmsg(errmsg("Out of memory"))));
+		ereport(ERROR,(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),errmsg("Out of memory")));
 	rrctl.first_record = XLogFindFirstRecord(rrctl.xlogreader_state, rrctl.logprivate.startptr);
 	while(!rrctl.logprivate.endptr_reached)
 	{
