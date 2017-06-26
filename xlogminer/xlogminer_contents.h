@@ -19,7 +19,7 @@ typedef struct FormData_xlogminer_contents
 {
 	uint32			sqlno;
 	uint32			xid;	
-	uint32			virtualxid;
+	int				virtualxid;
 	TimestampTz		timestamp;
 	char*			record_database;
 	char*			record_user;
@@ -53,6 +53,7 @@ void UpdateXlogContentsTuple(Form_xlogminer_contents fxc);
 void addSQLspace(void);
 void cleanSQLspace(void);
 void freeSQLspace(void);
+
 
 
 #endif

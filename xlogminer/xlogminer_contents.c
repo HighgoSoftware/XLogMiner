@@ -117,7 +117,7 @@ InsertXlogContentsTuple(Form_xlogminer_contents fxc)
 		if(!getRelationOidByName(PG_LOGMINER_DICTIONARY_TEMPTABLE,&rrctl.logprivate.xlogminer_contents_oid,true))
 			ereport(ERROR,(errmsg("It is failed to open temporary table xlogminer_contents.")));/*should not happen*/
 	reloid = rrctl.logprivate.xlogminer_contents_oid;
-	values[Anum_xlogminer_contents_xid - 1] = Int32GetDatum(fxc->xid);
+	values[Anum_xlogminer_contents_xid - 1] = Int64GetDatum(fxc->xid);
 	values[Anum_xlogminer_contents_virtualxid - 1] = Int32GetDatum(fxc->virtualxid);
 	values[Anum_xlogminer_contents_timestamp - 1] = TimestampTzGetDatum(fxc->timestamp);
 	if(fxc->record_database)

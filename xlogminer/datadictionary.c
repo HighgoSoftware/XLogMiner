@@ -244,15 +244,16 @@ scanDir_getfilename(char *scdir,NameData *datafilename, bool sigfile)
 		{
 			if(0 == strcmp("..",ent->d_name) || 0 == strcmp(".",ent->d_name))
 				continue;
+			
 			filenamlength = strlen(ent->d_name);
 			if(NAMEDATALEN <= filenamlength)
 				ereport(ERROR,
 				(errcode(ERRCODE_INVALID_SQL_STATEMENT_NAME),
 				errmsg("Filename \"%s\" is too long",ent->d_name)));
-			memcpy(datafilename[filecount].data, ent->d_name, filenamlength);
 			filecount++;
 			if(sigfile && 1 < filecount)
 				break;
+			memcpy(datafilename[filecount - 1].data, ent->d_name, filenamlength);
 			
 		}
 	}
