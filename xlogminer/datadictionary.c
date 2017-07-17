@@ -204,7 +204,11 @@ scanDir_getfilenum(char *scdir)
 
 	while (NULL != (ent = readdir(pDir)))
 	{
+#ifdef WIN32
+		snprintf(dir, MAXPGPATH, "%s\\%s", scdir, ent->d_name);
+#else
 		snprintf(dir, MAXPGPATH, "%s/%s", scdir, ent->d_name);
+#endif
 		lstat(dir, &statbuf);
 		if (!S_ISDIR(statbuf.st_mode))
 		{
@@ -238,7 +242,11 @@ scanDir_getfilename(char *scdir,NameData *datafilename, bool sigfile)
 
 	while (NULL != (ent = readdir(pDir)))
 	{
+#ifdef WIN32
+		snprintf(dir, MAXPGPATH, "%s\\%s", scdir, ent->d_name);
+#else	
 		snprintf(dir, MAXPGPATH, "%s/%s", scdir, ent->d_name);
+#endif
 		lstat(dir, &statbuf);
 		if (S_ISREG(statbuf.st_mode))
 		{
@@ -301,6 +309,11 @@ pathcheck(char *path)
 		posend = strlen(path) - 1;
 		if('/' == path[posend])
 			path[posend] = 0;
+	
+		else if ('\\' == path[posend])
+				path[posend] = '\0';
+			
+
 		return result;
 	}
 	
@@ -1252,7 +1265,11 @@ addxlogfile(char *path)
 			scanDir_getfilename(path, filenamelist,false);
 			/*for code Simplify. Make process same with "FILE == pathkind" while filenum was 1*/
 			if(1 == filenum)
+#ifdef WIN32
+				snprintf(dictionary_path, MAXPGPATH, "%s\\%s",path,filenamelist[0].data);
+#else
 				snprintf(dictionary_path, MAXPGPATH, "%s/%s",path,filenamelist[0].data);
+#endif
 		}
 	}
 
@@ -1262,7 +1279,11 @@ addxlogfile(char *path)
 		if(1 != filenum)
 		{
 			memset(dictionary_path, 0, MAXPGPATH);
+#ifdef WIN32
+			snprintf(dictionary_path, MAXPGPATH, "%s\\%s",path,filenamelist[loop].data);
+#else
 			snprintf(dictionary_path, MAXPGPATH, "%s/%s",path,filenamelist[loop].data);
+#endif
 		}
 		if(checkXlogFileValid(dictionary_path,pathkind))
 		{
@@ -1294,10 +1315,11 @@ loadXlogfileList()
 	snprintf(xlogfilelist_path, MAXPGPATH, "%s/%s/%d_%s",
 						 DataDir, LOGMINERDIR, MyProcPid, PG_LOGMINER_DICTIONARY_XLOGFILELIST);
 
-	fp = fopen(xlogfilelist_path, "r");
+	fp = fopen(xlogfilelist_path, "rb");
 	if(!fp)
+	{
 		return getfile;
-	
+	}
 	while(getdata)
 	{
 		getsize = fread(temp_path, MAXPGPATH, 1, fp);
@@ -1310,8 +1332,7 @@ loadXlogfileList()
 		}
 	}
 
-	if(fp)
-		fclose(fp);
+	fclose(fp);
 	return getfile;
 }
 
@@ -1323,12 +1344,13 @@ loadDicStorePath(char *dicstorepath)
 	
 	snprintf(dicstore_path, MAXPGPATH, "%s/%s/%d_%s",
 						 DataDir, LOGMINERDIR, MyProcPid, PG_LOGMINER_DICTIONARY_STOREPATH);
-	fp = fopen(dicstore_path, "r");
+	fp = fopen(dicstore_path, "rb");
 	if(!fp)
+	{
 		return false;
+	}
 	fread(dicstorepath, MAXPGPATH, 1, fp);
-	if(fp)
-		fclose(fp);
+	fclose(fp);
 	return true;
 
 }
@@ -1347,20 +1369,20 @@ writeXlogfileList()
 						 DataDir, LOGMINERDIR, MyProcPid, PG_LOGMINER_DICTIONARY_XLOGFILELIST);
 	
 
-	fp = fopen(xlogfilelist_path, "w");
+	fp = fopen(xlogfilelist_path, "wb");
 	if(!fp)
 	{
 
 		snprintf(logminer_dir, MAXPGPATH, "%s/%s",
 						 DataDir, LOGMINERDIR);
-			if(!create_dir(logminer_dir))
-				ereport(ERROR,
-					   (errmsg("fail to create dir")));
+		if(!create_dir(logminer_dir))
+			ereport(ERROR, (errmsg("fail to create dir")));
+		fp = fopen(xlogfilelist_path, "wb");
+		if(!fp)
+			ereport(ERROR,
+				(errmsg("in writeXlogfileList() ...can not open %s to write",xlogfilelist_path)));
 	}
-	fp = fopen(xlogfilelist_path, "w");
-	if(!fp)
-		ereport(ERROR,
-			(errmsg("can not open %s to write",xlogfilelist_path)));	
+		
 		
 	xflhead = (XlogFileList)XlogfileListCache;
 	xfPtr = xflhead;
@@ -1371,8 +1393,7 @@ writeXlogfileList()
 		xfPtr = xfPtr->next;
 	}
 
-	if(fp)
-		fclose(fp);
+	fclose(fp);
 }
 
 void
@@ -1387,18 +1408,19 @@ writeDicStorePath(char* dicstorepath)
 	if(is_file_exist(dicstore_path))
 		ereport(ERROR,(errmsg("Dictionary has already been loaded.")));
 	
-	fp = fopen(dicstore_path, "w");
+	fp = fopen(dicstore_path, "wb");
 	if(!fp)
 	{
 
 		snprintf(logminer_dir, MAXPGPATH, "%s/%s",DataDir, LOGMINERDIR);
 		if(!create_dir(logminer_dir))
 			ereport(ERROR,(errmsg("fail to create dir")));
+		fp = fopen(dicstore_path, "wb");
+		if(!fp)
+			ereport(ERROR,
+				(errmsg("can not open %s to write",dicstore_path)));
 	}
-	fp = fopen(dicstore_path, "w");
-	if(!fp)
-		ereport(ERROR,
-			(errmsg("can not open %s to write",dicstore_path)));		
+			
 	fwrite(dicstorepath, strlen(dicstorepath), 1, fp);
 	fclose(fp);
 }
@@ -1419,6 +1441,7 @@ dropAnalyseFile()
 	snprintf(temp, MAXPGPATH, "%s/%s", DataDir, LOGMINERDIR);
 	if(is_dir_exist(temp))
 		dropAllFileInADir(temp);
+	memset(temp,0,MAXPGPATH);
 }
 
 char*

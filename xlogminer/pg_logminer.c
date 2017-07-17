@@ -1443,7 +1443,9 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 
 	rrctl.logprivate.parser_start_xid = startxid;
 	rrctl.logprivate.parser_end_xid = endxid;
-
+	/*parameter check*/
+	inputParaCheck(starttimestamp, endtimestamp);
+		
 	loadDicStorePath(dictionary);
 	if(0 == dictionary[0])
 		ereport(ERROR,(errmsg("Xlogfilelist must be loaded first.")));
@@ -1464,8 +1466,6 @@ Datum pg_minerXlog(PG_FUNCTION_ARGS)
 	if(!is_xlogfilelist_exist())
 		ereport(ERROR,(errmsg("Xlogfilelist must be loaded first.")));
 	checkXlogFileList();
-	/*parameter check*/
-	inputParaCheck(starttimestamp, endtimestamp);
 
 	searchSysClass(sysclass,&sysclassNum);
 	relkind_miner = getRelKindInfo();
