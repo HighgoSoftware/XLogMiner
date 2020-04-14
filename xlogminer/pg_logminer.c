@@ -1,7 +1,15 @@
 /*-------------------------------------------------------------------------
  *
- * IDENTIFICATION
- *	  contrib/xlogminer/pg_logminer.c
+ * Abstract:
+ * Main analyse function of XLogminer
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification:
+ * pg_logminer.c
  *
  *-------------------------------------------------------------------------
  */

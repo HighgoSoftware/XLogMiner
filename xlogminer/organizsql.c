@@ -1,7 +1,15 @@
 /*-------------------------------------------------------------------------
  *
- * IDENTIFICATION
- *	  contrib/xlogminer/organizsql.c
+ * Abstract:
+ * Function to spell the SQL.
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification:
+ * organizsql.c
  *
  *-------------------------------------------------------------------------
  */

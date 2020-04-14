@@ -1,7 +1,16 @@
 /*
-*
-*contrib/xlogminer/pg_logminer.h
-*/
+ * Abstract:
+ * Main analyse function of XLogminer
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification:
+ * pg_logminer.h
+ *
+ */
 
 #ifndef PG_LOGMINER_H
 #define PG_LOGMINER_H

@@ -1,7 +1,15 @@
 /*
-*
-*contrib/xlogminer/logminer.c
-*/
+ * Abstract:
+ * Some tool function for Xlogminer
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification: 
+ * logminer.c
+ */
 #include "logminer.h"
 #include "datadictionary.h"
 #include "catalog/pg_type.h"
@@ -513,7 +521,8 @@ curXactCheck(TimestampTz xact_time ,TransactionId xid, bool xactcommit,xl_xact_p
 	{
 		if(0 != rrctl.logprivate.parser_start_xid && xid < rrctl.logprivate.parser_start_xid)
 			result = false;
-		if(0 != rrctl.logprivate.parser_end_xid && xid > rrctl.logprivate.parser_end_xid)
+		if(0 != rrctl.logprivate.parser_end_xid && xid > rrctl.logprivate.parser_end_xid)
+
 		{
 			rrctl.logprivate.endptr_reached = true;
 			result = false;

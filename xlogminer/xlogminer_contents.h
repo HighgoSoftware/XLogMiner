@@ -1,8 +1,15 @@
 /*-------------------------------------------------------------------------
+ * 
+ * Abstract:
+ * Maintain the display table of analyse result.
  *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification:
  * xlogminer_contents.h
- *
- * contrib/xlogminer/xlogminer_contents.h
  *
  *-------------------------------------------------------------------------
 */

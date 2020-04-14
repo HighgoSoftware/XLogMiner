@@ -1,7 +1,15 @@
 /*
-*
-*contrib/xlogminer/logminer.h
-*/
+ * Abstract:
+ * Some tool function for Xlogminer
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification: 
+ * logminer.h
+ */
 
 #ifndef LOGMINER_H
 #define LOGMINER_H

@@ -1,7 +1,15 @@
 /*
-*
-*contrib/xlogminer/datadictionary.h
-*/
+ * Abstract:
+ * DataDictionary and XlogFileList function 
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification: 
+ * datadictionary.h
+ */
 #ifndef PG_DATADICTIONARY_H
 #define PG_DATADICTIONARY_H
 #include "postgres.h"

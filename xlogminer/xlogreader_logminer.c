@@ -1,7 +1,15 @@
 /*-------------------------------------------------------------------------
  *
- * IDENTIFICATION
- *	  contrib/xlogminer/xlogreader_logminer.c
+ * Abstract:
+ * Code for read wal from disk.
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification:
+ * contrib/xlogminer/xlogreader_logminer.c
  *
  *-------------------------------------------------------------------------
  */

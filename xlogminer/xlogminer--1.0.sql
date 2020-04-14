@@ -1,4 +1,15 @@
-/* contrib/xlogminer/xlogminer--1.0.sql */
+/*
+ * Abstract:
+ * Create function for xlogminer
+ *
+ * Authored by lichuancheng@highgo.com ,20170524
+ * 
+ * Copyright:
+ * Copyright (c) 2017-2020, HighGo Software Co.,Ltd. All right reserved
+ * 
+ * Identification: 
+ * xlogminer--1.0.sql 
+ */
 CREATE OR REPLACE FUNCTION pg_minerXlog(starttime text, endtime text, startxid int, endxid int)
 RETURNS text AS
 'MODULE_PATHNAME','pg_minerXlog'
